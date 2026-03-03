@@ -5,13 +5,24 @@ Zenn book を PDF に変換する CLI ツールです。
 ## 前提
 
 - Node.js `>=22.12`
-- Corepack
 - pnpm
+
+`pnpm` が未導入の場合:
+
+```bash
+npm install -g pnpm
+```
+
+Linux で権限エラーが出る場合:
+
+```bash
+npm install -g pnpm --prefix ~/.local
+export PATH="$HOME/.local/bin:$PATH"
+```
 
 ## セットアップ
 
 ```bash
-corepack enable
 pnpm install
 ```
 

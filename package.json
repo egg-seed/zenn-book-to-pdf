@@ -4,7 +4,7 @@
   "description": "Convert Zenn book to PDF",
   "main": "src/index.ts",
   "type": "module",
-  "packageManager": "pnpm@10.5.2",
+  "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=22.12"
   },
