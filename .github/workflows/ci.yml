@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check format
+        run: pnpm run format:check
+
+      - name: Run lint
+        run: pnpm run lint
+
+      - name: Run typed lint
+        run: pnpm run lint:typed
+
+      - name: Run typecheck
+        run: pnpm run typecheck
+
+      - name: Run tests
+        run: pnpm test

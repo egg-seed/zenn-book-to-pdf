@@ -1,0 +1,33 @@
+import js from "@eslint/js";
+import globals from "globals";
+import eslintConfigPrettier from "eslint-config-prettier";
+import tseslint from "typescript-eslint";
+
+export default tseslint.config(
+  {
+    ignores: ["node_modules/**", "coverage/**", "data/**"],
+  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ["**/*.ts"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+        ...globals.es2024,
+      },
+    },
+  },
+  {
+    files: ["tests/**/*.ts"],
+    languageOptions: {
+      globals: {
+        ...globals.vitest,
+      },
+    },
+  },
+  eslintConfigPrettier,
+);

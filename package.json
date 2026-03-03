@@ -1,0 +1,62 @@
+{
+  "name": "zenn-book-to-pdf",
+  "version": "1.0.0",
+  "description": "Convert Zenn book to PDF",
+  "main": "src/index.ts",
+  "type": "module",
+  "packageManager": "pnpm@10.5.2",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "convert": "tsx src/index.ts",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:typed": "eslint . --config eslint.typed.config.js",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,mts,cts,json,md}": [
+      "prettier --write"
+    ],
+    "*.{js,ts}": [
+      "eslint --fix"
+    ]
+  },
+  "keywords": [
+    "zenn",
+    "pdf",
+    "book",
+    "markdown"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "fs-extra": "^11.3.3",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.1",
+    "puppeteer": "^24.37.5",
+    "zenn-content-css": "^0.4.5",
+    "zenn-markdown-html": "^0.4.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@types/fs-extra": "^11.0.4",
+    "@types/js-yaml": "^4.0.9",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.1",
+    "vitest": "^4.0.18"
+  }
+}

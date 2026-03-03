@@ -1,0 +1,9 @@
+node_modules/
+.pnpm-store/
+output.pdf
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
