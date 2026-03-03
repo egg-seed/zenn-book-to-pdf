@@ -5,51 +5,37 @@ Zenn book を PDF に変換する CLI ツールです。
 ## 前提
 
 - Node.js `>=22.12`
-- pnpm
-
-`pnpm` が未導入の場合:
-
-```bash
-npm install -g pnpm
-```
-
-Linux で権限エラーが出る場合:
-
-```bash
-npm install -g pnpm --prefix ~/.local
-export PATH="$HOME/.local/bin:$PATH"
-```
+- mise
 
 ## セットアップ
 
 ```bash
-pnpm install
+mise install
+mise run setup
 ```
 
 ## 使い方
 
-### 基本
-
 ```bash
-pnpm run convert -- <bookディレクトリ> [出力ファイル.pdf]
+mise run convert -- <bookディレクトリ> [出力ファイル.pdf]
 ```
 
 例:
 
 ```bash
-pnpm run convert -- ../zenn-tech-articles/books/my-book output.pdf
+mise run convert -- ../zenn-tech-articles/books/my-book output.pdf
 ```
 
 ### コンフィグ指定
 
 ```bash
-pnpm run convert -- <bookディレクトリ> [出力ファイル.pdf] --config <configファイル>
+mise run convert -- <bookディレクトリ> [出力ファイル.pdf] --config <configファイル>
 ```
 
 例:
 
 ```bash
-pnpm run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json
+mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json
 ```
 
 ### 最小の book ディレクトリ構成
@@ -83,19 +69,24 @@ title: はじめに
 
 ## 開発コマンド
 
-- 変換実行: `pnpm run start`
-- テスト: `pnpm test`
-- フォーマット: `pnpm run format`
-- フォーマット検証: `pnpm run format:check`
-- Lint: `pnpm run lint`
-- Typed Lint: `pnpm run lint:typed`
-- Type Check: `pnpm run typecheck`
+- 変換実行: `mise run convert -- <bookディレクトリ> [出力ファイル.pdf]`
+- テスト: `mise run test`
+- フォーマット: `mise run format`
+- フォーマット検証: `mise run format_check`
+- Lint: `mise run lint`
+- Typed Lint: `mise run lint_typed`
+- Type Check: `mise run typecheck`
 
 ## 品質ゲート（ローカル/CI共通）
 
 ```bash
-pnpm run format:check && pnpm run lint && pnpm run lint:typed && pnpm run typecheck && pnpm test
+mise run ci
 ```
+
+## バージョン管理ルール
+
+- `package.json` の `packageManager` と `.mise.toml` の `pnpm` バージョンは常に一致させてください。
+- 依存解決は `pnpm-lock.yaml` を正として管理します。
 
 ## 補足
 

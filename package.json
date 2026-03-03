@@ -8,18 +8,6 @@
   "engines": {
     "node": ">=22.12"
   },
-  "scripts": {
-    "start": "tsx src/index.ts",
-    "convert": "tsx src/index.ts",
-    "test": "vitest run",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint .",
-    "lint:typed": "eslint . --config eslint.typed.config.js",
-    "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
-    "prepare": "husky"
-  },
   "lint-staged": {
     "*.{js,mjs,cjs,ts,mts,cts,json,md}": [
       "prettier --write"

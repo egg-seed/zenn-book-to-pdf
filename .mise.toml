@@ -1,0 +1,51 @@
+[tools]
+node = "22.12.0"
+pnpm = "10.30.3"
+
+[tasks.install]
+description = "Install dependencies"
+run = "pnpm install --frozen-lockfile"
+
+[tasks.setup]
+description = "Install dependencies and git hooks"
+run = "mise run install && pnpm exec husky"
+
+[tasks.convert]
+description = "Convert Zenn book to PDF"
+run = "pnpm exec tsx src/index.ts"
+
+[tasks.test]
+description = "Run tests"
+run = "pnpm exec vitest run"
+
+[tasks.format]
+description = "Format files"
+run = "pnpm exec prettier --write ."
+
+[tasks.format_check]
+description = "Check formatting"
+run = "pnpm exec prettier --check ."
+
+[tasks.lint]
+description = "Run lint"
+run = "pnpm exec eslint ."
+
+[tasks.lint_typed]
+description = "Run typed lint"
+run = "pnpm exec eslint . --config eslint.typed.config.js"
+
+[tasks.lint_fix]
+description = "Run lint with auto-fix"
+run = "pnpm exec eslint . --fix"
+
+[tasks.typecheck]
+description = "Run typecheck"
+run = "pnpm exec tsc --noEmit --project tsconfig.typecheck.json"
+
+[tasks.lint_staged]
+description = "Run lint-staged"
+run = "pnpm exec lint-staged"
+
+[tasks.ci]
+description = "Run CI quality gate"
+run = "mise run format_check && mise run lint && mise run lint_typed && mise run typecheck && mise run test"
