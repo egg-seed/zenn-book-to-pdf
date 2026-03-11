@@ -9,6 +9,9 @@ const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const fixtureBookPath = fileURLToPath(
   new URL("../fixtures/book-minimal", import.meta.url),
 );
+const fixtureConfigPath = fileURLToPath(
+  new URL("../fixtures/book-minimal/pdf.config.json", import.meta.url),
+);
 
 const tempDirs: string[] = [];
 
@@ -50,7 +53,24 @@ describe("CLI E2E", () => {
     tempDirs.push(tmpDir);
 
     const outputPath = path.join(tmpDir, "output.pdf");
-    const { code } = await runCli([fixtureBookPath, outputPath]);
+    const { code, stdout, stderr } = await runCli([
+      fixtureBookPath,
+      outputPath,
+      "--config",
+      fixtureConfigPath,
+    ]);
+
+    if (code !== 0) {
+      throw new Error(
+        [
+          `CLI exited with code ${String(code)}.`,
+          "--- stdout ---",
+          stdout || "<empty>",
+          "--- stderr ---",
+          stderr || "<empty>",
+        ].join("\n"),
+      );
+    }
 
     expect(code).toBe(0);
     expect(await fs.pathExists(outputPath)).toBe(true);

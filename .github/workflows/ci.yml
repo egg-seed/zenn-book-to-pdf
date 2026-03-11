@@ -43,5 +43,8 @@ jobs:
       - name: Install dependencies
         run: mise run install
 
+      - name: Install browser for Puppeteer
+        run: mise exec -- pnpm exec puppeteer browsers install chrome
+
       - name: Run quality gate
         run: mise run ci
