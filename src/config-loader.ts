@@ -2,6 +2,12 @@ import fs from "fs-extra";
 import path from "path";
 import type { PaperFormat } from "puppeteer";
 
+export type PdfWaitUntil =
+  | "load"
+  | "domcontentloaded"
+  | "networkidle0"
+  | "networkidle2";
+
 export interface PdfMargin {
   top: string;
   bottom: string;
@@ -19,12 +25,19 @@ export interface PdfFonts {
   headingFamily: string;
 }
 
+export interface PdfRenderOptions {
+  waitUntil: PdfWaitUntil;
+  navigationTimeout: number;
+  imageTimeout: number;
+}
+
 export interface PdfConfig {
   pageSize: PaperFormat;
   margin: PdfMargin;
   header: PdfHeaderFooter;
   footer: PdfHeaderFooter;
   fonts: PdfFonts;
+  render: PdfRenderOptions;
 }
 
 interface PdfConfigOverrides {
@@ -33,6 +46,7 @@ interface PdfConfigOverrides {
   header?: Partial<PdfHeaderFooter>;
   footer?: Partial<PdfHeaderFooter>;
   fonts?: unknown;
+  render?: unknown;
 }
 
 export const DEFAULT_CONFIG: PdfConfig = {
@@ -66,6 +80,11 @@ export const DEFAULT_CONFIG: PdfConfig = {
       "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
     headingFamily:
       "'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', 'IPAexGothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+  },
+  render: {
+    waitUntil: "domcontentloaded",
+    navigationTimeout: 60000,
+    imageTimeout: 30000,
   },
 };
 
@@ -109,6 +128,7 @@ function mergeConfig(
   overrides: PdfConfigOverrides,
 ): PdfConfig {
   const fonts = mergeFontsConfig(defaults.fonts, overrides.fonts);
+  const render = mergeRenderConfig(defaults.render, overrides.render);
 
   return {
     pageSize: overrides.pageSize ?? defaults.pageSize,
@@ -116,6 +136,7 @@ function mergeConfig(
     header: { ...defaults.header, ...(overrides.header ?? {}) },
     footer: { ...defaults.footer, ...(overrides.footer ?? {}) },
     fonts,
+    render,
   };
 }
 
@@ -171,8 +192,85 @@ function mergeFontsConfig(
   };
 }
 
+function mergeRenderConfig(
+  defaultRender: PdfRenderOptions,
+  overrideRender: unknown,
+): PdfRenderOptions {
+  if (overrideRender == null) {
+    return { ...defaultRender };
+  }
+
+  if (typeof overrideRender !== "object" || Array.isArray(overrideRender)) {
+    console.warn(
+      "⚠️  render の設定はオブジェクトで指定してください。デフォルト値を使用します。",
+    );
+    return { ...defaultRender };
+  }
+
+  const renderRecord = overrideRender as Record<string, unknown>;
+  const waitUntilValue = renderRecord.waitUntil;
+  const navigationTimeoutValue = renderRecord.navigationTimeout;
+  const imageTimeoutValue = renderRecord.imageTimeout;
+
+  const waitUntil = isPdfWaitUntil(waitUntilValue)
+    ? waitUntilValue
+    : defaultRender.waitUntil;
+  const navigationTimeout =
+    typeof navigationTimeoutValue === "number" &&
+    Number.isFinite(navigationTimeoutValue) &&
+    navigationTimeoutValue >= 0
+      ? navigationTimeoutValue
+      : defaultRender.navigationTimeout;
+  const imageTimeout =
+    typeof imageTimeoutValue === "number" &&
+    Number.isFinite(imageTimeoutValue) &&
+    imageTimeoutValue >= 0
+      ? imageTimeoutValue
+      : defaultRender.imageTimeout;
+
+  if (waitUntilValue != null && !isPdfWaitUntil(waitUntilValue)) {
+    console.warn(
+      "⚠️  render.waitUntil は load, domcontentloaded, networkidle0, networkidle2 のいずれかを指定してください。デフォルト値を使用します。",
+    );
+  }
+
+  if (
+    navigationTimeoutValue != null &&
+    (typeof navigationTimeoutValue !== "number" ||
+      !Number.isFinite(navigationTimeoutValue) ||
+      navigationTimeoutValue < 0)
+  ) {
+    console.warn(
+      "⚠️  render.navigationTimeout は 0 以上の数値で指定してください。デフォルト値を使用します。",
+    );
+  }
+
+  if (
+    imageTimeoutValue != null &&
+    (typeof imageTimeoutValue !== "number" ||
+      !Number.isFinite(imageTimeoutValue) ||
+      imageTimeoutValue < 0)
+  ) {
+    console.warn(
+      "⚠️  render.imageTimeout は 0 以上の数値で指定してください。デフォルト値を使用します。",
+    );
+  }
+
+  return {
+    waitUntil,
+    navigationTimeout,
+    imageTimeout,
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isPdfWaitUntil(value: unknown): value is PdfWaitUntil {
+  return ["load", "domcontentloaded", "networkidle0", "networkidle2"].includes(
+    typeof value === "string" ? value : "",
+  );
 }
 
 function normalizeMargin(value: unknown): Partial<PdfMargin> | undefined {
@@ -243,6 +341,10 @@ function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
 
   if ("fonts" in value) {
     overrides.fonts = value.fonts;
+  }
+
+  if ("render" in value) {
+    overrides.render = value.render;
   }
 
   return overrides;

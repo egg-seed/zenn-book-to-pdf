@@ -44,6 +44,72 @@ describe("fonts config", () => {
     );
   });
 
+  it("render 未指定時はデフォルト設定を使う", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      pageSize: "A5",
+    });
+
+    const config = await loadPdfConfig();
+
+    expect(config.render).toEqual(DEFAULT_CONFIG.render);
+  });
+
+  it("render の各設定を読み込める", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      render: {
+        waitUntil: "load",
+        navigationTimeout: 45000,
+        imageTimeout: 12000,
+      },
+    });
+
+    const config = await loadPdfConfig();
+
+    expect(config.render).toEqual({
+      waitUntil: "load",
+      navigationTimeout: 45000,
+      imageTimeout: 12000,
+    });
+  });
+
+  it("render が不正な型なら警告してデフォルト設定にフォールバックする", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      render: "invalid",
+    });
+
+    const config = await loadPdfConfig();
+
+    expect(config.render).toEqual(DEFAULT_CONFIG.render);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("render の設定はオブジェクト"),
+    );
+  });
+
+  it("render の不正値は警告してデフォルト値にフォールバックする", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      render: {
+        waitUntil: "invalid",
+        navigationTimeout: -1,
+        imageTimeout: "bad",
+      },
+    });
+
+    const config = await loadPdfConfig();
+
+    expect(config.render).toEqual(DEFAULT_CONFIG.render);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("render.waitUntil"),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("render.navigationTimeout"),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("render.imageTimeout"),
+    );
+  });
+
   it("buildBookHtml で本文と見出しフォントがCSSに反映される", async () => {
     const book: ParsedBook = {
       config: {
@@ -71,6 +137,34 @@ describe("fonts config", () => {
     );
     expect(html).toContain("h1, h2, h3,");
     expect(html).toContain("font-family: 'Noto Sans JP', sans-serif;");
+  });
+
+  it("buildBookHtml で margin が @page に反映される", async () => {
+    const book: ParsedBook = {
+      config: {
+        title: "Test Book",
+      },
+      chapters: [
+        {
+          slug: "chapter-1",
+          title: "Chapter One",
+          content: "本文テキスト",
+        },
+      ],
+      bookPath: tmpDir,
+    };
+
+    const html = await buildBookHtml(book, {
+      margin: {
+        top: "20mm",
+        right: "10mm",
+        bottom: "24mm",
+        left: "12mm",
+      },
+    });
+
+    expect(html).toContain("@page { margin: 20mm 10mm 24mm 12mm; }");
+    expect(html).toContain("@page :first { margin: 20mm 10mm 24mm 12mm; }");
   });
 
   it("--config 指定ファイルは pdf.config.json より優先される", async () => {

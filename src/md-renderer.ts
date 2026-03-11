@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { createRequire } from "module";
 import fs from "fs-extra";
 import path from "path";
-import type { PdfFonts } from "./config-loader.ts";
+import type { PdfFonts, PdfMargin } from "./config-loader.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -26,6 +26,7 @@ export interface ParsedBook {
 
 interface PdfConfigLike {
   fonts?: PdfFonts;
+  margin?: Partial<PdfMargin>;
 }
 
 function getZennCss(): string {
@@ -45,7 +46,8 @@ export async function renderMarkdown(markdownText: string): Promise<string> {
   const rendered = await render(markdownText, {
     embedOrigin: "https://embed.zenn.studio",
   });
-  return typeof rendered === "string" ? rendered : String(rendered);
+  const html = typeof rendered === "string" ? rendered : String(rendered);
+  return html.replace(/<details>/gi, "<details open>");
 }
 
 export async function buildBookHtml(
@@ -55,6 +57,7 @@ export async function buildBookHtml(
   const { config, chapters } = book;
   const zennCss = getZennCss();
   const fonts = normalizeFonts(pdfConfig.fonts);
+  const margin = normalizeMargin(pdfConfig.margin);
 
   const tocItems = chapters
     .map(
@@ -83,7 +86,7 @@ export async function buildBookHtml(
   <meta charset="UTF-8">
   <title>${escapeHtml(config.title ?? "Zenn Book")}</title>
   <style>${zennCss}</style>
-  <style>${getBookStyles(fonts)}</style>
+  <style>${getBookStyles(fonts, margin)}</style>
 </head>
 <body>
   <div class="cover">
@@ -192,6 +195,7 @@ function escapeHtml(value: unknown): string {
 
 function getBookStyles(
   fonts: PdfFonts = { bodyFamily: "", headingFamily: "" },
+  margin: PdfMargin = DEFAULT_MARGIN,
 ): string {
   const bodyFamily =
     fonts.bodyFamily ||
@@ -199,6 +203,7 @@ function getBookStyles(
   const headingFamily =
     fonts.headingFamily ||
     "'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', 'IPAexGothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
+  const pageMargin = `${margin.top} ${margin.right} ${margin.bottom} ${margin.left}`;
 
   return `
     * { box-sizing: border-box; }
@@ -297,9 +302,36 @@ function getBookStyles(
     }
 
     /* ページ設定 */
-    @page { margin: 0; }
-    @page :first { margin: 0; }
+    @page { margin: ${pageMargin}; }
+    @page :first { margin: ${pageMargin}; }
   `;
+}
+
+function normalizeMargin(value: unknown): PdfMargin {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { ...DEFAULT_MARGIN };
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return {
+    top:
+      typeof record.top === "string" && record.top.trim() !== ""
+        ? record.top
+        : DEFAULT_MARGIN.top,
+    bottom:
+      typeof record.bottom === "string" && record.bottom.trim() !== ""
+        ? record.bottom
+        : DEFAULT_MARGIN.bottom,
+    left:
+      typeof record.left === "string" && record.left.trim() !== ""
+        ? record.left
+        : DEFAULT_MARGIN.left,
+    right:
+      typeof record.right === "string" && record.right.trim() !== ""
+        ? record.right
+        : DEFAULT_MARGIN.right,
+  };
 }
 
 function normalizeFonts(value: unknown): PdfFonts {
@@ -325,4 +357,11 @@ const DEFAULT_FONTS: PdfFonts = {
     "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
   headingFamily:
     "'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', 'IPAexGothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+};
+
+const DEFAULT_MARGIN: PdfMargin = {
+  top: "14mm",
+  bottom: "16mm",
+  left: "14mm",
+  right: "14mm",
 };

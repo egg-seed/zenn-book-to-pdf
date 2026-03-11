@@ -1,5 +1,10 @@
 {
   "pageSize": "A5",
+  "render": {
+    "waitUntil": "domcontentloaded",
+    "navigationTimeout": 60000,
+    "imageTimeout": 30000
+  },
   "margin": {
     "top": "14mm",
     "bottom": "16mm",

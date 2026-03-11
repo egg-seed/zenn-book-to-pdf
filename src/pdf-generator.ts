@@ -16,8 +16,8 @@ export async function generatePdf(
     const page = await browser.newPage();
 
     await page.setContent(html, {
-      waitUntil: "networkidle0",
-      timeout: 60000,
+      waitUntil: pdfConfig.render.waitUntil,
+      timeout: pdfConfig.render.navigationTimeout,
     });
 
     await page.evaluate(() => {
@@ -27,12 +27,13 @@ export async function generatePdf(
         }
       });
     });
+
     await page.waitForFunction(
       () =>
         [...document.querySelectorAll("img")].every(
           (img) => !(img instanceof HTMLImageElement) || img.complete,
         ),
-      { timeout: 30000 },
+      { timeout: pdfConfig.render.imageTimeout },
     );
 
     const useHeaderFooter =

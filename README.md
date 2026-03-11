@@ -38,6 +38,30 @@ mise run convert -- <bookディレクトリ> [出力ファイル.pdf] --config <
 mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json
 ```
 
+- `pdf.config.json` はローカル用の設定ファイルとして扱います。
+- 共有用テンプレートは [pdf.config.example.json](pdf.config.example.json) を使用し、必要に応じてコピーして `pdf.config.json` を作成してください。
+- 生成された PDF と `pdf.config.json` は Git 管理しません。
+
+### 描画待機設定
+
+`pdf.config.json` の `render` で、PDF 化前の待機戦略と timeout を切り替えられます。
+
+```json
+{
+  "render": {
+    "waitUntil": "domcontentloaded",
+    "navigationTimeout": 60000,
+    "imageTimeout": 30000
+  }
+}
+```
+
+- `waitUntil`: `load` / `domcontentloaded` / `networkidle0` / `networkidle2`
+- `navigationTimeout`: `page.setContent()` の timeout ミリ秒
+- `imageTimeout`: 画像読込完了待ちの timeout ミリ秒
+
+外部埋め込みが多い book では、`networkidle0` より `domcontentloaded` の方が安定しやすいです。
+
 ### 最小の book ディレクトリ構成
 
 ```text
@@ -92,3 +116,4 @@ mise run ci
 
 - CLI エントリは TypeScript 実装です: `src/index.ts`
 - フォント設定の注意は `docs/font-setup.md` を参照してください。
+- 描画待機設定は `pdf.config.json` の `render` で調整できます。

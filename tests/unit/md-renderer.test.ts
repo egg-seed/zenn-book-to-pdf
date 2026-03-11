@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs-extra";
 import path from "path";
 import os from "os";
-import { embedImages } from "../../src/md-renderer.ts";
+import { embedImages, renderMarkdown } from "../../src/md-renderer.ts";
 
 const TINY_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -148,6 +148,35 @@ describe("embedImages", () => {
 
       expect(result).toContain('class="hero"');
       expect(result).toContain('alt="description"');
+    });
+  });
+});
+
+describe("renderMarkdown", () => {
+  describe("details タグの open 属性付与", () => {
+    it(":::details から生成された <details> に open 属性を付与する", async () => {
+      const md = ":::details タイトル\n内容テキスト\n:::";
+      const result = await renderMarkdown(md);
+
+      expect(result).toContain("<details open>");
+      expect(result).not.toContain("<details>");
+    });
+
+    it("details を含まない Markdown には影響しない", async () => {
+      const md = "# 見出し\n普通のテキスト";
+      const result = await renderMarkdown(md);
+
+      expect(result).not.toContain("<details");
+    });
+
+    it("複数の :::details が全て open 付きになる", async () => {
+      const md =
+        ":::details 一つ目\n内容1\n:::\n\n:::details 二つ目\n内容2\n:::";
+      const result = await renderMarkdown(md);
+
+      const matches = result.match(/<details open>/g);
+      expect(matches).toHaveLength(2);
+      expect(result).not.toContain("<details>");
     });
   });
 });
