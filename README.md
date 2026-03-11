@@ -38,6 +38,7 @@ mise run convert -- <bookディレクトリ> [出力ファイル.pdf] --config <
 mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json
 ```
 
+- `--config` は必ず値を伴います。`--config` 単体、`--config --other`、`--config ""` はエラー終了します。
 - `pdf.config.json` はローカル用の設定ファイルとして扱います。
 - 共有用テンプレートは [pdf.config.example.json](pdf.config.example.json) を使用し、必要に応じてコピーして `pdf.config.json` を作成してください。
 - 生成された PDF と `pdf.config.json` は Git 管理しません。

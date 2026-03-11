@@ -1,0 +1,4 @@
+title: "Minimal Book"
+summary: "A minimal fixture for CLI to PDF conversion."
+chapters:
+  - chapter1

@@ -1,40 +1,28 @@
-import path from "path";
 import fs from "fs-extra";
 import { spawnSync } from "child_process";
 import { parseBook } from "./book-parser.ts";
 import { buildBookHtml } from "./md-renderer.ts";
 import { generatePdf } from "./pdf-generator.ts";
 import { loadPdfConfig, type PdfConfig } from "./config-loader.ts";
+import { CliUsageError, parseCliArgs, printCliUsage } from "./cli-args.ts";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  let bookPath: string;
+  let outputPath: string;
+  let configPath: string | null;
 
-  if (args.length < 1) {
-    console.error(
-      "使い方: node src/index.ts <bookディレクトリ> [出力ファイル.pdf] [--config <コンフィグファイル>]",
-    );
-    console.error(
-      "例: node src/index.ts ../zenn-tech-articles/books/my-book output.pdf",
-    );
-    console.error(
-      "例: node src/index.ts ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json",
-    );
-    process.exit(1);
+  try {
+    ({ bookPath, outputPath, configPath } = parseCliArgs(args));
+  } catch (err) {
+    if (err instanceof CliUsageError) {
+      console.error(`エラー: ${err.message}`);
+      printCliUsage();
+      process.exit(1);
+    }
+
+    throw err;
   }
-
-  const configFlagIndex = args.indexOf("--config");
-  const configPath = configFlagIndex !== -1 ? args[configFlagIndex + 1] : null;
-  const positionalArgs =
-    configFlagIndex !== -1
-      ? args.filter(
-          (_, i) => i !== configFlagIndex && i !== configFlagIndex + 1,
-        )
-      : args;
-
-  const bookPath = path.resolve(positionalArgs[0] ?? "");
-  const outputPath = positionalArgs[1]
-    ? path.resolve(positionalArgs[1])
-    : path.join(process.cwd(), "output.pdf");
 
   if (!(await fs.pathExists(bookPath))) {
     console.error(`エラー: ディレクトリが見つかりません: ${bookPath}`);
