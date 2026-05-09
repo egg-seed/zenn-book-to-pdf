@@ -2,11 +2,20 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs-extra";
 import path from "path";
 import os from "os";
-import { embedImages, renderMarkdown } from "../../src/md-renderer.ts";
+import {
+  buildImageCoverHtml,
+  embedImages,
+  renderMarkdown,
+  resolveCoverImage,
+} from "../../src/md-renderer.ts";
 
 const TINY_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const TINY_PNG_BUFFER = Buffer.from(TINY_PNG_BASE64, "base64");
+const MINIMAL_JPEG_BUFFER = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01,
+  0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
+]);
 
 let tmpDir: string;
 
@@ -56,11 +65,7 @@ describe("embedImages", () => {
     });
 
     it("JPEG ファイルを正しい MIME タイプで変換する", async () => {
-      const jpegBuffer = Buffer.from([
-        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-        0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
-      ]);
-      await fs.writeFile(path.join(tmpDir, "photo.jpg"), jpegBuffer);
+      await fs.writeFile(path.join(tmpDir, "photo.jpg"), MINIMAL_JPEG_BUFFER);
 
       const html = '<img src="photo.jpg" class="hero">';
       const result = await embedImages(html, tmpDir);
@@ -149,6 +154,65 @@ describe("embedImages", () => {
       expect(result).toContain('class="hero"');
       expect(result).toContain('alt="description"');
     });
+  });
+});
+
+describe("resolveCoverImage", () => {
+  it("cover.png を優先して data URI に変換する", async () => {
+    await fs.writeFile(path.join(tmpDir, "cover.png"), TINY_PNG_BUFFER);
+    await fs.writeFile(path.join(tmpDir, "cover.jpeg"), MINIMAL_JPEG_BUFFER);
+
+    const result = await resolveCoverImage(tmpDir);
+
+    expect(result).not.toBeNull();
+    expect(result?.fileName).toBe("cover.png");
+    expect(result?.dataUri).toContain("data:image/png;base64,");
+  });
+
+  it("cover.png がない場合は cover.jpeg を使う", async () => {
+    await fs.writeFile(path.join(tmpDir, "cover.jpeg"), MINIMAL_JPEG_BUFFER);
+
+    const result = await resolveCoverImage(tmpDir);
+
+    expect(result).not.toBeNull();
+    expect(result?.fileName).toBe("cover.jpeg");
+    expect(result?.dataUri).toContain("data:image/jpeg;base64,");
+  });
+
+  it("表紙画像がない場合は null を返す", async () => {
+    await expect(resolveCoverImage(tmpDir)).resolves.toBeNull();
+  });
+
+  it("壊れた表紙画像は警告して null を返す", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await fs.writeFile(path.join(tmpDir, "cover.png"), Buffer.from("broken"));
+
+    const result = await resolveCoverImage(tmpDir);
+
+    expect(result).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("cover.png"));
+  });
+});
+
+describe("buildImageCoverHtml", () => {
+  it("全面表紙用の HTML を組み立てる", () => {
+    const html = buildImageCoverHtml(
+      {
+        config: { title: "Cover Book" },
+        chapters: [],
+        bookPath: tmpDir,
+      },
+      {
+        fileName: "cover.png",
+        dataUri: `data:image/png;base64,${TINY_PNG_BASE64}`,
+      },
+    );
+
+    expect(html).toContain('class="image-cover"');
+    expect(html).toContain("object-fit: cover;");
+    expect(html).toContain("@page {");
+    expect(html).toContain("margin: 0;");
+    expect(html).toContain(`data:image/png;base64,${TINY_PNG_BASE64}`);
   });
 });
 

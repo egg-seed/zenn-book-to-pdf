@@ -1,12 +1,53 @@
+import fs from "fs-extra";
 import puppeteer from "puppeteer";
+import { PDFDocument } from "pdf-lib";
 import path from "path";
-import { DEFAULT_CONFIG, type PdfConfig } from "./config-loader.ts";
+import {
+  DEFAULT_CONFIG,
+  type PdfConfig,
+  type PdfHeaderFooter,
+  type PdfMargin,
+} from "./config-loader.ts";
 
-export async function generatePdf(
-  html: string,
+export interface PdfGenerationOverrides {
+  margin?: PdfMargin;
+  header?: Partial<PdfHeaderFooter>;
+  footer?: Partial<PdfHeaderFooter>;
+}
+
+function resolvePdfConfig(
+  pdfConfig: PdfConfig,
+  overrides: PdfGenerationOverrides = {},
+): PdfConfig {
+  return {
+    ...pdfConfig,
+    margin: overrides.margin ?? pdfConfig.margin,
+    header: {
+      ...pdfConfig.header,
+      ...(overrides.header ?? {}),
+    },
+    footer: {
+      ...pdfConfig.footer,
+      ...(overrides.footer ?? {}),
+    },
+  };
+}
+
+export async function savePdfBuffer(
+  pdfBuffer: Buffer,
   outputPath: string,
-  pdfConfig: PdfConfig = DEFAULT_CONFIG,
 ): Promise<void> {
+  await fs.writeFile(outputPath, pdfBuffer);
+  console.log(`PDF を生成しました: ${path.resolve(outputPath)}`);
+}
+
+export async function renderPdfBuffer(
+  html: string,
+  pdfConfig: PdfConfig = DEFAULT_CONFIG,
+  overrides: PdfGenerationOverrides = {},
+): Promise<Buffer> {
+  const effectiveConfig = resolvePdfConfig(pdfConfig, overrides);
+
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -16,8 +57,8 @@ export async function generatePdf(
     const page = await browser.newPage();
 
     await page.setContent(html, {
-      waitUntil: pdfConfig.render.waitUntil,
-      timeout: pdfConfig.render.navigationTimeout,
+      waitUntil: effectiveConfig.render.waitUntil,
+      timeout: effectiveConfig.render.navigationTimeout,
     });
 
     await page.evaluate(() => {
@@ -33,28 +74,56 @@ export async function generatePdf(
         [...document.querySelectorAll("img")].every(
           (img) => !(img instanceof HTMLImageElement) || img.complete,
         ),
-      { timeout: pdfConfig.render.imageTimeout },
+      { timeout: effectiveConfig.render.imageTimeout },
     );
 
     const useHeaderFooter =
-      pdfConfig.header.enabled || pdfConfig.footer.enabled;
+      effectiveConfig.header.enabled || effectiveConfig.footer.enabled;
 
-    await page.pdf({
-      path: outputPath,
-      format: pdfConfig.pageSize,
+    const pdfBytes = await page.pdf({
+      format: effectiveConfig.pageSize,
       printBackground: true,
-      margin: pdfConfig.margin,
+      margin: effectiveConfig.margin,
       displayHeaderFooter: useHeaderFooter,
-      headerTemplate: pdfConfig.header.enabled
-        ? pdfConfig.header.template
+      headerTemplate: effectiveConfig.header.enabled
+        ? effectiveConfig.header.template
         : "<div></div>",
-      footerTemplate: pdfConfig.footer.enabled
-        ? pdfConfig.footer.template
+      footerTemplate: effectiveConfig.footer.enabled
+        ? effectiveConfig.footer.template
         : "<div></div>",
     });
 
-    console.log(`PDF を生成しました: ${path.resolve(outputPath)}`);
+    return Buffer.from(pdfBytes);
   } finally {
     await browser.close();
   }
+}
+
+export async function mergePdfBuffers(pdfBuffers: Buffer[]): Promise<Buffer> {
+  const mergedDocument = await PDFDocument.create();
+
+  for (const pdfBuffer of pdfBuffers) {
+    const sourceDocument = await PDFDocument.load(pdfBuffer);
+    const pages = await mergedDocument.copyPages(
+      sourceDocument,
+      sourceDocument.getPageIndices(),
+    );
+
+    for (const page of pages) {
+      mergedDocument.addPage(page);
+    }
+  }
+
+  const mergedBytes = await mergedDocument.save();
+  return Buffer.from(mergedBytes);
+}
+
+export async function generatePdf(
+  html: string,
+  outputPath: string,
+  pdfConfig: PdfConfig = DEFAULT_CONFIG,
+  overrides: PdfGenerationOverrides = {},
+): Promise<void> {
+  const pdfBuffer = await renderPdfBuffer(html, pdfConfig, overrides);
+  await savePdfBuffer(pdfBuffer, outputPath);
 }

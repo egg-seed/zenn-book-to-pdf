@@ -1,10 +1,26 @@
 import fs from "fs-extra";
 import { spawnSync } from "child_process";
 import { parseBook } from "./book-parser.ts";
-import { buildBookHtml } from "./md-renderer.ts";
-import { generatePdf } from "./pdf-generator.ts";
+import {
+  buildBookHtml,
+  buildImageCoverHtml,
+  resolveCoverImage,
+} from "./md-renderer.ts";
+import {
+  generatePdf,
+  mergePdfBuffers,
+  renderPdfBuffer,
+  savePdfBuffer,
+} from "./pdf-generator.ts";
 import { loadPdfConfig, type PdfConfig } from "./config-loader.ts";
 import { CliUsageError, parseCliArgs, printCliUsage } from "./cli-args.ts";
+
+const ZERO_MARGIN = {
+  top: "0",
+  bottom: "0",
+  left: "0",
+  right: "0",
+} as const;
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -39,9 +55,35 @@ async function main(): Promise<void> {
 
   console.log("🔄 HTML に変換中...");
   const html = await buildBookHtml(book, pdfConfig);
+  const coverImage = await resolveCoverImage(book.bookPath);
 
   console.log("📄 PDF を生成中...");
-  await generatePdf(html, outputPath, pdfConfig);
+  if (!coverImage) {
+    await generatePdf(html, outputPath, pdfConfig);
+    console.log("✅ 完了!");
+    return;
+  }
+
+  console.log(`  表紙画像: ${coverImage.fileName}`);
+  const coverHtml = buildImageCoverHtml(book, coverImage);
+  const coverPdfBuffer = await renderPdfBuffer(coverHtml, pdfConfig, {
+    margin: ZERO_MARGIN,
+    header: {
+      enabled: false,
+      template: "<div></div>",
+    },
+    footer: {
+      enabled: false,
+      template: "<div></div>",
+    },
+  });
+  const bookPdfBuffer = await renderPdfBuffer(html, pdfConfig);
+  const mergedPdfBuffer = await mergePdfBuffers([
+    coverPdfBuffer,
+    bookPdfBuffer,
+  ]);
+
+  await savePdfBuffer(mergedPdfBuffer, outputPath);
 
   console.log("✅ 完了!");
 }

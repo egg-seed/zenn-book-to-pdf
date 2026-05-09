@@ -24,6 +24,11 @@ export interface ParsedBook {
   bookPath: string;
 }
 
+export interface CoverImage {
+  fileName: string;
+  dataUri: string;
+}
+
 interface PdfConfigLike {
   fonts?: PdfFonts;
   margin?: Partial<PdfMargin>;
@@ -106,6 +111,25 @@ export async function buildBookHtml(
 </html>`;
 }
 
+export function buildImageCoverHtml(
+  book: ParsedBook,
+  coverImage: CoverImage,
+): string {
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(book.config.title ?? "Zenn Book Cover")}</title>
+  <style>${getImageCoverStyles()}</style>
+</head>
+<body>
+  <section class="image-cover">
+    <img src="${coverImage.dataUri}" alt="${escapeHtml(book.config.title ?? "Book cover")}">
+  </section>
+</body>
+</html>`;
+}
+
 function getMimeType(ext: string): string {
   const types: Record<string, string> = {
     png: "image/png",
@@ -116,6 +140,31 @@ function getMimeType(ext: string): string {
     svg: "image/svg+xml",
   };
   return types[ext] || "image/png";
+}
+
+function isPngBuffer(buffer: Buffer): boolean {
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  return pngSignature.every((byte, index) => buffer[index] === byte);
+}
+
+function isJpegBuffer(buffer: Buffer): boolean {
+  return (
+    buffer.length >= 4 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[buffer.length - 2] === 0xff &&
+    buffer[buffer.length - 1] === 0xd9
+  );
+}
+
+function validateImageBuffer(buffer: Buffer, ext: string): void {
+  if (ext === "png" && !isPngBuffer(buffer)) {
+    throw new Error("PNG ファイルが壊れているか形式が不正です");
+  }
+
+  if ((ext === "jpg" || ext === "jpeg") && !isJpegBuffer(buffer)) {
+    throw new Error("JPEG ファイルが壊れているか形式が不正です");
+  }
 }
 
 async function toDataUri(
@@ -139,12 +188,34 @@ async function toDataUri(
       : path.resolve(bookPath, src);
     const buffer = await fs.readFile(imagePath);
     const ext = path.extname(imagePath).toLowerCase().slice(1);
+    validateImageBuffer(buffer, ext);
     return `data:${getMimeType(ext)};base64,${buffer.toString("base64")}`;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`⚠️  画像の埋め込みに失敗しました: ${src} (${message})`);
     return null;
   }
+}
+
+export async function resolveCoverImage(
+  bookPath: string,
+): Promise<CoverImage | null> {
+  const repoRoot = path.dirname(path.dirname(bookPath));
+  const coverCandidates = ["cover.png", "cover.jpeg"];
+
+  for (const fileName of coverCandidates) {
+    const coverPath = path.join(bookPath, fileName);
+    if (!(await fs.pathExists(coverPath))) {
+      continue;
+    }
+
+    const dataUri = await toDataUri(fileName, bookPath, repoRoot);
+    if (dataUri) {
+      return { fileName, dataUri };
+    }
+  }
+
+  return null;
 }
 
 export async function embedImages(
@@ -304,6 +375,41 @@ function getBookStyles(
     /* ページ設定 */
     @page { margin: ${pageMargin}; }
     @page :first { margin: ${pageMargin}; }
+  `;
+}
+
+function getImageCoverStyles(): string {
+  return `
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    .image-cover {
+      width: 100vw;
+      height: 100vh;
+      break-after: page;
+      page-break-after: always;
+    }
+
+    .image-cover img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    @page {
+      margin: 0;
+    }
   `;
 }
 
