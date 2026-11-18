@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import fs from "fs-extra";
 import os from "os";
 import path from "path";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName } from "pdf-lib";
 import { fileURLToPath } from "url";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -134,5 +134,9 @@ describe("CLI E2E", () => {
     const pdfBuffer = await fs.readFile(outputPath);
     expect(pdfBuffer.toString("latin1").startsWith("%PDF-")).toBe(true);
     await expect(countPdfPages(pdfBuffer)).resolves.toBeGreaterThanOrEqual(4);
+
+    // 表紙と本文を1回で出力するので、しおり（Outlines）が残る
+    const pdfDocument = await PDFDocument.load(pdfBuffer);
+    expect(pdfDocument.catalog.has(PDFName.of("Outlines"))).toBe(true);
   }, 120000);
 });

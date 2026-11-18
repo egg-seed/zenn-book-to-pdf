@@ -3,7 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import {
-  buildImageCoverHtml,
+  buildBookHtml,
   embedImages,
   renderMarkdown,
   resolveCoverImage,
@@ -194,25 +194,37 @@ describe("resolveCoverImage", () => {
   });
 });
 
-describe("buildImageCoverHtml", () => {
-  it("全面表紙用の HTML を組み立てる", () => {
-    const html = buildImageCoverHtml(
+describe("buildBookHtml の画像表紙", () => {
+  it("画像表紙を本文と同じ HTML の先頭に余白 0 のページとして置く", async () => {
+    const html = await buildBookHtml(
       {
         config: { title: "Cover Book" },
-        chapters: [],
+        chapters: [{ slug: "c1", title: "C1", content: "本文" }],
         bookPath: tmpDir,
       },
+      { pageSize: "A5" },
       {
         fileName: "cover.png",
         dataUri: `data:image/png;base64,${TINY_PNG_BASE64}`,
       },
     );
 
-    expect(html).toContain('class="image-cover"');
-    expect(html).toContain("object-fit: cover;");
-    expect(html).toContain("@page {");
-    expect(html).toContain("margin: 0;");
+    expect(html).toContain("@page image-cover { margin: 0; }");
+    expect(html).toContain("width: 5.8268in;");
+    expect(html.indexOf('class="image-cover"')).toBeLessThan(
+      html.indexOf('class="cover"'),
+    );
     expect(html).toContain(`data:image/png;base64,${TINY_PNG_BASE64}`);
+  });
+
+  it("表紙画像がなければ画像表紙を置かない", async () => {
+    const html = await buildBookHtml({
+      config: { title: "No Cover" },
+      chapters: [],
+      bookPath: tmpDir,
+    });
+
+    expect(html).not.toContain('class="image-cover"');
   });
 });
 

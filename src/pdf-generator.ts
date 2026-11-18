@@ -1,6 +1,5 @@
 import fs from "fs-extra";
 import puppeteer from "puppeteer";
-import { PDFDocument } from "pdf-lib";
 import path from "path";
 import {
   DEFAULT_CONFIG,
@@ -105,6 +104,9 @@ export async function renderPdfBuffer(
     const pdfBytes = await page.pdf({
       format: effectiveConfig.pageSize,
       printBackground: true,
+      // 見出しからしおり（PDF のアウトライン）を作る。outline には tagged が必要。
+      tagged: true,
+      outline: true,
       margin: effectiveConfig.margin,
       displayHeaderFooter: useHeaderFooter,
       headerTemplate: effectiveConfig.header.enabled
@@ -119,25 +121,6 @@ export async function renderPdfBuffer(
   } finally {
     await browser.close();
   }
-}
-
-export async function mergePdfBuffers(pdfBuffers: Buffer[]): Promise<Buffer> {
-  const mergedDocument = await PDFDocument.create();
-
-  for (const pdfBuffer of pdfBuffers) {
-    const sourceDocument = await PDFDocument.load(pdfBuffer);
-    const pages = await mergedDocument.copyPages(
-      sourceDocument,
-      sourceDocument.getPageIndices(),
-    );
-
-    for (const page of pages) {
-      mergedDocument.addPage(page);
-    }
-  }
-
-  const mergedBytes = await mergedDocument.save();
-  return Buffer.from(mergedBytes);
 }
 
 export async function generatePdf(
