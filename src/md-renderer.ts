@@ -160,7 +160,7 @@ export async function buildBookHtml(
   <meta charset="UTF-8">
   <title>${escapeHtml(config.title ?? "Zenn Book")}</title>
   <style>${zennCss}</style>
-  <style>${getBookStyles(fonts, margin)}</style>
+  <style>${getBookStyles(fonts, margin, getPaperSize(pdfConfig.pageSize))}</style>
   ${coverImage ? `<style>${getImageCoverStyles(getPaperSize(pdfConfig.pageSize))}</style>` : ""}
 </head>
 <body>
@@ -333,7 +333,10 @@ function escapeHtml(value: unknown): string {
 function getBookStyles(
   fonts: PdfFonts = { bodyFamily: "", headingFamily: "" },
   margin: PdfMargin = DEFAULT_MARGIN,
+  paper: [number, number] = getPaperSize("a5"),
 ): string {
+  // 図が1ページに収まる高さ。余白と見出し1行ぶんの余裕を引く。
+  const figureMaxHeight = `calc(${paper[1]}in - ${margin.top} - ${margin.bottom} - 12mm)`;
   const bodyFamily =
     fonts.bodyFamily ||
     "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif";
@@ -421,6 +424,9 @@ function getBookStyles(
     /* 画像 */
     .chapter-body img {
       max-width: 100%;
+      max-height: ${figureMaxHeight};
+      object-fit: contain;
+      break-inside: avoid;
       display: block;
       margin: 16px auto;
     }
@@ -445,6 +451,8 @@ function getBookStyles(
       display: block;
       margin: 0 auto;
       max-width: 100%;
+      /* ページより高い図は縮めて、ページをまたがないようにする */
+      max-height: ${figureMaxHeight};
       height: auto;
     }
 
