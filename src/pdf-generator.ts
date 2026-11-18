@@ -69,6 +69,28 @@ export async function renderPdfBuffer(
       });
     });
 
+    const mermaidError = await page.evaluate(async () => {
+      const mermaid = (
+        window as unknown as {
+          mermaid?: {
+            run: (options: { querySelector: string }) => Promise<void>;
+          };
+        }
+      ).mermaid;
+      if (!mermaid || !document.querySelector("pre.mermaid")) {
+        return null;
+      }
+      try {
+        await mermaid.run({ querySelector: "pre.mermaid" });
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
+      }
+    });
+    if (mermaidError) {
+      console.warn(`⚠️  mermaid の図の描画に失敗しました: ${mermaidError}`);
+    }
+
     await page.waitForFunction(
       () =>
         [...document.querySelectorAll("img")].every(

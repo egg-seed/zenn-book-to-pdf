@@ -38,6 +38,8 @@ export interface PdfConfig {
   footer: PdfHeaderFooter;
   fonts: PdfFonts;
   render: PdfRenderOptions;
+  /** タイトルページに出す概要。指定すると config.yaml の summary の代わりに使う。空文字なら概要を出さない。 */
+  summary?: string;
 }
 
 interface PdfConfigOverrides {
@@ -47,6 +49,7 @@ interface PdfConfigOverrides {
   footer?: Partial<PdfHeaderFooter>;
   fonts?: unknown;
   render?: unknown;
+  summary?: string;
 }
 
 export const DEFAULT_CONFIG: PdfConfig = {
@@ -137,6 +140,7 @@ function mergeConfig(
     footer: { ...defaults.footer, ...(overrides.footer ?? {}) },
     fonts,
     render,
+    summary: overrides.summary ?? defaults.summary,
   };
 }
 
@@ -345,6 +349,16 @@ function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
 
   if ("render" in value) {
     overrides.render = value.render;
+  }
+
+  if ("summary" in value) {
+    if (typeof value.summary === "string") {
+      overrides.summary = value.summary;
+    } else {
+      console.warn(
+        "⚠️  summary は文字列で指定してください。config.yaml の summary を使用します。",
+      );
+    }
   }
 
   return overrides;

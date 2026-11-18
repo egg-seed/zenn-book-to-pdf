@@ -32,6 +32,53 @@ export interface CoverImage {
 interface PdfConfigLike {
   fonts?: PdfFonts;
   margin?: Partial<PdfMargin>;
+  summary?: string;
+}
+
+const MERMAID_EMBED_REGEX =
+  /<span class="embed-block zenn-embedded zenn-embedded-mermaid"><iframe\b[^>]*?\bdata-content="([^"]*)"[^>]*><\/iframe><\/span>/gi;
+
+function getMermaidScript(): string {
+  const scriptPath = path.join(
+    path.dirname(require.resolve("mermaid/package.json")),
+    "dist",
+    "mermaid.min.js",
+  );
+  // Escape any closing script tag so the inlined bundle cannot end the element early.
+  return readFileSync(scriptPath, "utf8").replace(/<\/script/gi, "<\\/script");
+}
+
+/**
+ * Zenn renders mermaid blocks as iframes to embed.zenn.studio, which stay blank in a PDF.
+ * Replace them with <pre class="mermaid"> so mermaid can draw them inside the page.
+ */
+export function convertMermaidEmbeds(html: string): string {
+  return html.replace(MERMAID_EMBED_REGEX, (fullMatch, encoded: string) => {
+    let source: string;
+    try {
+      source = decodeURIComponent(encoded);
+    } catch {
+      console.warn(
+        "⚠️  mermaid のコードを読み取れませんでした。そのまま残します。",
+      );
+      return fullMatch;
+    }
+    return `<div class="mermaid-diagram"><pre class="mermaid">${escapeHtml(source)}</pre></div>`;
+  });
+}
+
+function buildMermaidScripts(html: string, fonts: PdfFonts): string {
+  if (!html.includes('class="mermaid"')) {
+    return "";
+  }
+  const options = {
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: "neutral",
+    fontFamily: fonts.headingFamily,
+  };
+  return `<script>${getMermaidScript()}</script>
+  <script>mermaid.initialize(${JSON.stringify(options).replace(/</g, "\\u003c")});</script>`;
 }
 
 function getZennCss(): string {
@@ -52,7 +99,7 @@ export async function renderMarkdown(markdownText: string): Promise<string> {
     embedOrigin: "https://embed.zenn.studio",
   });
   const html = typeof rendered === "string" ? rendered : String(rendered);
-  return html.replace(/<details>/gi, "<details open>");
+  return convertMermaidEmbeds(html.replace(/<details>/gi, "<details open>"));
 }
 
 export async function buildBookHtml(
@@ -84,6 +131,7 @@ export async function buildBookHtml(
     }),
   );
   const chaptersHtml = chaptersHtmlArray.join("\n");
+  const summary = pdfConfig.summary ?? config.summary;
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -96,7 +144,7 @@ export async function buildBookHtml(
 <body>
   <div class="cover">
     <h1 class="book-title">${escapeHtml(config.title ?? "")}</h1>
-    ${config.summary ? `<p class="book-summary">${escapeHtml(config.summary)}</p>` : ""}
+    ${summary ? `<p class="book-summary">${escapeHtml(summary)}</p>` : ""}
   </div>
 
   <nav class="toc">
@@ -107,6 +155,7 @@ export async function buildBookHtml(
   <main class="content">
     ${chaptersHtml}
   </main>
+  ${buildMermaidScripts(chaptersHtml, fonts)}
 </body>
 </html>`;
 }
@@ -357,6 +406,27 @@ function getBookStyles(
       max-width: 100%;
       display: block;
       margin: 16px auto;
+    }
+
+    /* mermaid の図（Zenn の pre 用スタイルを打ち消す） */
+    .mermaid-diagram {
+      margin: 16px 0;
+      text-align: center;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .znc .mermaid-diagram pre.mermaid {
+      background: none;
+      color: inherit;
+      padding: 0;
+      margin: 0;
+      border-radius: 0;
+      white-space: pre;
+      overflow: visible;
+    }
+    .mermaid-diagram svg {
+      max-width: 100%;
+      height: auto;
     }
 
     /* コードブロックの折り返し */
