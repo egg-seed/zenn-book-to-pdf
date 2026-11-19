@@ -7,5 +7,7 @@ coverage/
 .env.*
 !.env.example
 *.pdf
-pdf.config.json
+pdf.config*.json
+!pdf.config.example.json
 .serena/
+__pycache__/
