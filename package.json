@@ -28,6 +28,7 @@
     "fs-extra": "^11.3.3",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.1",
+    "mermaid": "11.17.2",
     "pdf-lib": "^1.17.1",
     "puppeteer": "^24.43.0",
     "zenn-content-css": "^0.4.5",

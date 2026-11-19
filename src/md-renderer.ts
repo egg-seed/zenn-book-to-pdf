@@ -32,6 +32,73 @@ export interface CoverImage {
 interface PdfConfigLike {
   fonts?: PdfFonts;
   margin?: Partial<PdfMargin>;
+  summary?: string;
+  pageSize?: string;
+}
+
+/** Puppeteer の PaperFormat と同じ寸法（インチ、幅 x 高さ） */
+const PAPER_SIZES_IN: Record<string, [number, number]> = {
+  letter: [8.5, 11],
+  legal: [8.5, 14],
+  tabloid: [11, 17],
+  ledger: [17, 11],
+  a0: [33.1102, 46.811],
+  a1: [23.3858, 33.1102],
+  a2: [16.5354, 23.3858],
+  a3: [11.6929, 16.5354],
+  a4: [8.2677, 11.6929],
+  a5: [5.8268, 8.2677],
+  a6: [4.1339, 5.8268],
+};
+
+function getPaperSize(pageSize: string | undefined): [number, number] {
+  return PAPER_SIZES_IN[(pageSize ?? "a5").toLowerCase()] ?? PAPER_SIZES_IN.a5;
+}
+
+const MERMAID_EMBED_REGEX =
+  /<span class="embed-block zenn-embedded zenn-embedded-mermaid"><iframe\b[^>]*?\bdata-content="([^"]*)"[^>]*><\/iframe><\/span>/gi;
+
+function getMermaidScript(): string {
+  const scriptPath = path.join(
+    path.dirname(require.resolve("mermaid/package.json")),
+    "dist",
+    "mermaid.min.js",
+  );
+  // Escape any closing script tag so the inlined bundle cannot end the element early.
+  return readFileSync(scriptPath, "utf8").replace(/<\/script/gi, "<\\/script");
+}
+
+/**
+ * Zenn renders mermaid blocks as iframes to embed.zenn.studio, which stay blank in a PDF.
+ * Replace them with <pre class="mermaid"> so mermaid can draw them inside the page.
+ */
+export function convertMermaidEmbeds(html: string): string {
+  return html.replace(MERMAID_EMBED_REGEX, (fullMatch, encoded: string) => {
+    let source: string;
+    try {
+      source = decodeURIComponent(encoded);
+    } catch {
+      console.warn(
+        "⚠️  mermaid のコードを読み取れませんでした。そのまま残します。",
+      );
+      return fullMatch;
+    }
+    return `<div class="mermaid-diagram"><pre class="mermaid">${escapeHtml(source)}</pre></div>`;
+  });
+}
+
+function buildMermaidScripts(html: string, fonts: PdfFonts): string {
+  if (!html.includes('class="mermaid"')) {
+    return "";
+  }
+  const options = {
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: "neutral",
+    fontFamily: fonts.headingFamily,
+  };
+  return `<script>${getMermaidScript()}</script>
+  <script>mermaid.initialize(${JSON.stringify(options).replace(/</g, "\\u003c")});</script>`;
 }
 
 function getZennCss(): string {
@@ -52,12 +119,13 @@ export async function renderMarkdown(markdownText: string): Promise<string> {
     embedOrigin: "https://embed.zenn.studio",
   });
   const html = typeof rendered === "string" ? rendered : String(rendered);
-  return html.replace(/<details>/gi, "<details open>");
+  return convertMermaidEmbeds(html.replace(/<details>/gi, "<details open>"));
 }
 
 export async function buildBookHtml(
   book: ParsedBook,
   pdfConfig: PdfConfigLike = {},
+  coverImage: CoverImage | null = null,
 ): Promise<string> {
   const { config, chapters } = book;
   const zennCss = getZennCss();
@@ -84,6 +152,7 @@ export async function buildBookHtml(
     }),
   );
   const chaptersHtml = chaptersHtmlArray.join("\n");
+  const summary = pdfConfig.summary ?? config.summary;
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -91,12 +160,14 @@ export async function buildBookHtml(
   <meta charset="UTF-8">
   <title>${escapeHtml(config.title ?? "Zenn Book")}</title>
   <style>${zennCss}</style>
-  <style>${getBookStyles(fonts, margin)}</style>
+  <style>${getBookStyles(fonts, margin, getPaperSize(pdfConfig.pageSize))}</style>
+  ${coverImage ? `<style>${getImageCoverStyles(getPaperSize(pdfConfig.pageSize))}</style>` : ""}
 </head>
 <body>
+  ${coverImage ? buildImageCoverSection(config.title, coverImage) : ""}
   <div class="cover">
     <h1 class="book-title">${escapeHtml(config.title ?? "")}</h1>
-    ${config.summary ? `<p class="book-summary">${escapeHtml(config.summary)}</p>` : ""}
+    ${summary ? `<p class="book-summary">${escapeHtml(summary)}</p>` : ""}
   </div>
 
   <nav class="toc">
@@ -107,27 +178,22 @@ export async function buildBookHtml(
   <main class="content">
     ${chaptersHtml}
   </main>
+  ${buildMermaidScripts(chaptersHtml, fonts)}
 </body>
 </html>`;
 }
 
-export function buildImageCoverHtml(
-  book: ParsedBook,
+/**
+ * 全面表紙。本文と同じ HTML の先頭に置き、余白 0 の名前付きページで出力する。
+ * 本文と1回で PDF にするので、目次のリンクとしおりが保たれる。
+ */
+function buildImageCoverSection(
+  title: string | undefined,
   coverImage: CoverImage,
 ): string {
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <title>${escapeHtml(book.config.title ?? "Zenn Book Cover")}</title>
-  <style>${getImageCoverStyles()}</style>
-</head>
-<body>
-  <section class="image-cover">
-    <img src="${coverImage.dataUri}" alt="${escapeHtml(book.config.title ?? "Book cover")}">
-  </section>
-</body>
-</html>`;
+  return `<section class="image-cover">
+    <img src="${coverImage.dataUri}" alt="${escapeHtml(title ?? "Book cover")}">
+  </section>`;
 }
 
 function getMimeType(ext: string): string {
@@ -267,7 +333,10 @@ function escapeHtml(value: unknown): string {
 function getBookStyles(
   fonts: PdfFonts = { bodyFamily: "", headingFamily: "" },
   margin: PdfMargin = DEFAULT_MARGIN,
+  paper: [number, number] = getPaperSize("a5"),
 ): string {
+  // 図が1ページに収まる高さ。余白と見出し1行ぶんの余裕を引く。
+  const figureMaxHeight = `calc(${paper[1]}in - ${margin.top} - ${margin.bottom} - 12mm)`;
   const bodyFamily =
     fonts.bodyFamily ||
     "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif";
@@ -355,8 +424,36 @@ function getBookStyles(
     /* 画像 */
     .chapter-body img {
       max-width: 100%;
+      max-height: ${figureMaxHeight};
+      object-fit: contain;
+      break-inside: avoid;
       display: block;
       margin: 16px auto;
+    }
+
+    /* mermaid の図（Zenn の pre 用スタイルを打ち消す） */
+    .mermaid-diagram {
+      margin: 16px 0;
+      text-align: center;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .znc .mermaid-diagram pre.mermaid {
+      background: none;
+      color: inherit;
+      padding: 0;
+      margin: 0;
+      border-radius: 0;
+      white-space: pre;
+      overflow: visible;
+    }
+    .mermaid-diagram svg {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      /* ページより高い図は縮めて、ページをまたがないようにする */
+      max-height: ${figureMaxHeight};
+      height: auto;
     }
 
     /* コードブロックの折り返し */
@@ -378,23 +475,16 @@ function getBookStyles(
   `;
 }
 
-function getImageCoverStyles(): string {
+function getImageCoverStyles([widthIn, heightIn]: [number, number]): string {
   return `
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      background: #fff;
-    }
-
-    body {
-      overflow: hidden;
-    }
+    @page image-cover { margin: 0; }
+    @page image-cover:first { margin: 0; }
 
     .image-cover {
-      width: 100vw;
-      height: 100vh;
+      page: image-cover;
+      width: ${widthIn}in;
+      height: ${heightIn}in;
+      overflow: hidden;
       break-after: page;
       page-break-after: always;
     }
@@ -405,9 +495,6 @@ function getImageCoverStyles(): string {
       height: 100%;
       object-fit: cover;
       object-position: center;
-    }
-
-    @page {
       margin: 0;
     }
   `;
