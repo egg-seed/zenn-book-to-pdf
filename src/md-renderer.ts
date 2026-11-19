@@ -537,6 +537,13 @@ function getBookStyles(
       overflow-wrap: anywhere;
       word-break: break-all;
     }
+    /* ページ幅に収まる表は、単語の途中で改行しない（PDF 生成時に表ごとに付ける） */
+    .znc table.keep-words th,
+    .znc table.keep-words td,
+    .znc table.keep-words code {
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
     .znc tr {
       break-inside: avoid;
       page-break-inside: avoid;

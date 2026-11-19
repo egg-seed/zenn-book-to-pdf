@@ -85,6 +85,14 @@ describe("表と改ページの CSS", () => {
     );
   });
 
+  it("keep-words の表では、単語の途中で改行しない", async () => {
+    const html = await buildBookHtml(makeBook("|a|b|\n|-|-|\n|`c`|d|\n"), {});
+
+    expect(html).toMatch(
+      /\.znc table\.keep-words th,\s*\.znc table\.keep-words td,\s*\.znc table\.keep-words code \{[^}]*overflow-wrap: break-word;[^}]*word-break: normal;/,
+    );
+  });
+
   it("見出しとコードのファイル名の直後で改ページしない", async () => {
     const html = await buildBookHtml(makeBook("## 見出し\n"), {});
 
