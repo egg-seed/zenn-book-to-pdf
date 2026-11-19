@@ -51,7 +51,7 @@ const PAPER_SIZES_IN: Record<string, [number, number]> = {
   a6: [4.1339, 5.8268],
 };
 
-function getPaperSize(pageSize: string | undefined): [number, number] {
+export function getPaperSize(pageSize: string | undefined): [number, number] {
   return PAPER_SIZES_IN[(pageSize ?? "a5").toLowerCase()] ?? PAPER_SIZES_IN.a5;
 }
 
