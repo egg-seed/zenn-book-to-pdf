@@ -150,6 +150,22 @@ export async function renderPdfBuffer(
       });
     });
 
+    // 表は、まず単語の途中で改行しない組み方を試す。
+    // ページ幅に収まらない表（長いパスや識別子を含む表）だけ、どこでも改行する組み方に戻す。
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      document.querySelectorAll<HTMLElement>(".znc table").forEach((table) => {
+        const container = table.parentElement;
+        if (!container) {
+          return;
+        }
+        table.classList.add("keep-words");
+        if (table.offsetWidth > container.clientWidth) {
+          table.classList.remove("keep-words");
+        }
+      });
+    });
+
     const mermaidError = await page.evaluate(async () => {
       const mermaid = (
         window as unknown as {
