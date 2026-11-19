@@ -40,6 +40,8 @@ export interface PdfConfig {
   render: PdfRenderOptions;
   /** タイトルページに出す概要。指定すると config.yaml の summary の代わりに使う。空文字なら概要を出さない。 */
   summary?: string;
+  /** 各ページの下中央にページ番号を入れる。表紙画像のページには入れない。 */
+  pageNumbers?: boolean;
 }
 
 interface PdfConfigOverrides {
@@ -50,6 +52,7 @@ interface PdfConfigOverrides {
   fonts?: unknown;
   render?: unknown;
   summary?: string;
+  pageNumbers?: boolean;
 }
 
 export const DEFAULT_CONFIG: PdfConfig = {
@@ -141,6 +144,7 @@ function mergeConfig(
     fonts,
     render,
     summary: overrides.summary ?? defaults.summary,
+    pageNumbers: overrides.pageNumbers ?? defaults.pageNumbers,
   };
 }
 
@@ -357,6 +361,16 @@ function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
     } else {
       console.warn(
         "⚠️  summary は文字列で指定してください。config.yaml の summary を使用します。",
+      );
+    }
+  }
+
+  if ("pageNumbers" in value) {
+    if (typeof value.pageNumbers === "boolean") {
+      overrides.pageNumbers = value.pageNumbers;
+    } else {
+      console.warn(
+        "⚠️  pageNumbers は true か false で指定してください。ページ番号は入れません。",
       );
     }
   }

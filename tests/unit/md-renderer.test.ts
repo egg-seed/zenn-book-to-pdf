@@ -209,7 +209,7 @@ describe("buildBookHtml の画像表紙", () => {
       },
     );
 
-    expect(html).toContain("@page image-cover { margin: 0; }");
+    expect(html).toMatch(/@page image-cover \{\s*margin: 0;/);
     expect(html).toContain("width: 5.8268in;");
     expect(html.indexOf('class="image-cover"')).toBeLessThan(
       html.indexOf('class="cover"'),

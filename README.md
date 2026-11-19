@@ -99,6 +99,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `fonts`: 本文と見出しのフォントファミリーです。`bodyFamily` と `headingFamily` に CSS の `font-family` 文字列を指定します。フォント設定の注意は [docs/font-setup.md](docs/font-setup.md) を参照してください。
 - `render`: PDF 化前の待機戦略と timeout です。詳細は次の通りです。
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
+- `pageNumbers`: `true` にすると、各ページの下中央にページ番号を入れます。表紙画像のページには入れません。`footer` の設定と違い、表紙だけ番号を消せます。既定は `false` です。
 
 #### 描画待機設定
 
@@ -119,6 +120,11 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `imageTimeout`: 画像読込完了待ちの timeout ミリ秒
 
 外部埋め込みが多い book では、`networkidle0` より `domcontentloaded` の方が安定しやすいです。
+
+### 表と改ページ
+
+- Zenn では横スクロールで見せる表を、PDF ではページ幅に収めます。表の中のコードは途中で折り返します。
+- 見出しやコードのファイル名だけがページの最後に残らないよう、すぐ後の本文と同じページに置きます。
 
 ### mermaid の図
 
