@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import path from "path";
 import type { PdfColophon, PdfFonts, PdfMargin } from "./config-loader.ts";
 import { buildColophon, getColophonStyles } from "./colophon.ts";
+import { splitTitle } from "./title.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -158,6 +159,8 @@ export async function buildBookHtml(
   const summary = pdfConfig.summary ?? config.summary;
   const colophon = pdfConfig.colophon;
 
+  const bookTitle = splitTitle(config.title ?? "");
+
   return `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -171,7 +174,8 @@ export async function buildBookHtml(
 <body>
   ${coverImage ? buildImageCoverSection(config.title, coverImage) : ""}
   <div class="cover">
-    <h1 class="book-title">${escapeHtml(config.title ?? "")}</h1>
+    <h1 class="book-title">${escapeHtml(bookTitle.main)}</h1>
+    ${bookTitle.subtitle ? `<p class="book-subtitle">${escapeHtml(bookTitle.subtitle)}</p>` : ""}
     ${summary ? `<p class="book-summary">${formatSummary(summary)}</p>` : ""}
   </div>
 
@@ -412,6 +416,17 @@ function getBookStyles(
       color: #3d7ebf;
       margin-bottom: 24px;
       line-height: 1.3;
+    }
+    .book-title:has(+ .book-subtitle) {
+      margin-bottom: 8px;
+    }
+    .book-subtitle {
+      font-family: ${headingFamily};
+      font-size: 15pt;
+      font-weight: 700;
+      color: #3d7ebf;
+      line-height: 1.4;
+      margin: 0 0 24px;
     }
     .book-summary {
       font-size: 12pt;

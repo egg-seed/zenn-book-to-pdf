@@ -98,6 +98,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `footer`: 各ページのフッター設定です。`enabled` を `true` にすると `template` に指定した HTML を表示します。デフォルトでは無効です。ページ番号を表示したい場合は、`template` 内で `<span class="pageNumber"></span>` と `<span class="totalPages"></span>` を使えます。
 - `fonts`: 本文と見出しのフォントファミリーです。`bodyFamily` と `headingFamily` に CSS の `font-family` 文字列を指定します。フォント設定の注意は [docs/font-setup.md](docs/font-setup.md) を参照してください。
 - `render`: PDF 化前の待機戦略と timeout です。詳細は次の通りです。
+- 書名の副題：`config.yaml` の `title` が「書名: 副題」（半角コロンと空白）または「書名：副題」の形なら、2ページ目のタイトルページと奥付では、副題を別の行に小さく出します。PDF の文書情報の書名は、`title` をそのまま使います。
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
 - `pageNumbers`: `true` にすると、各ページの下中央にページ番号を入れます。表紙画像のページには入れません。`footer` の設定と違い、表紙だけ番号を消せます。既定は `false` です。
 - `colophon`: 最後のページの下に置く奥付です。`title`（省略すると `config.yaml` の書名）、`rows`（`label` と `value` の組の配列）、`note`（任意の一文。情報がいつ時点のものかなど）、`copyright`（罫線の下に右寄せで置く著作権の表示）を書けます。`value` が URL だけならリンクにします。奥付のページにはページ番号を入れません。
