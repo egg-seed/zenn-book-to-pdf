@@ -34,6 +34,7 @@ interface PdfConfigLike {
   margin?: Partial<PdfMargin>;
   summary?: string;
   pageSize?: string;
+  pageNumbers?: boolean;
 }
 
 /** Puppeteer の PaperFormat と同じ寸法（インチ、幅 x 高さ） */
@@ -160,7 +161,7 @@ export async function buildBookHtml(
   <meta charset="UTF-8">
   <title>${escapeHtml(config.title ?? "Zenn Book")}</title>
   <style>${zennCss}</style>
-  <style>${getBookStyles(fonts, margin, getPaperSize(pdfConfig.pageSize))}</style>
+  <style>${getBookStyles(fonts, margin, getPaperSize(pdfConfig.pageSize), pdfConfig.pageNumbers ?? false)}</style>
   ${coverImage ? `<style>${getImageCoverStyles(getPaperSize(pdfConfig.pageSize))}</style>` : ""}
 </head>
 <body>
@@ -355,6 +356,7 @@ function getBookStyles(
   fonts: PdfFonts = { bodyFamily: "", headingFamily: "" },
   margin: PdfMargin = DEFAULT_MARGIN,
   paper: [number, number] = getPaperSize("a5"),
+  pageNumbers = false,
 ): string {
   // 図が1ページに収まる高さ。余白と見出し1行ぶんの余裕を引く。
   const figureMaxHeight = `calc(${paper[1]}in - ${margin.top} - ${margin.bottom} - 12mm)`;
@@ -498,16 +500,70 @@ function getBookStyles(
       word-break: inherit;
     }
 
+    /* 表：Zenn の CSS は横スクロール用に display:block; overflow:auto にしているため、
+       紙面では右側が切れる。ページ幅に収め、セル内のコードは途中で折り返す。 */
+    .znc table {
+      display: table;
+      width: 100%;
+      overflow: visible;
+      font-size: 0.85em;
+    }
+    .znc th,
+    .znc td {
+      padding: 0.4rem;
+      overflow-wrap: anywhere;
+    }
+    .znc td code,
+    .znc th code {
+      overflow-wrap: anywhere;
+      word-break: break-all;
+    }
+    .znc tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    /* 見出しやコードのファイル名だけがページの最後に残らないようにする */
+    .chapter-body h1,
+    .chapter-body h2,
+    .chapter-body h3,
+    .chapter-body h4,
+    .znc .code-block-filename-container {
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+
     /* ページ設定 */
     @page { margin: ${pageMargin}; }
     @page :first { margin: ${pageMargin}; }
+    ${pageNumbers ? getPageNumberStyles(headingFamily) : ""}
+  `;
+}
+
+/** CSS のページ余白ボックスでページ番号を入れる（名前付きページの表紙では消せる）。 */
+function getPageNumberStyles(family: string): string {
+  return `
+    @page {
+      @bottom-center {
+        content: counter(page);
+        font-family: ${family};
+        font-size: 8pt;
+        color: #888;
+      }
+    }
   `;
 }
 
 function getImageCoverStyles([widthIn, heightIn]: [number, number]): string {
   return `
-    @page image-cover { margin: 0; }
-    @page image-cover:first { margin: 0; }
+    @page image-cover {
+      margin: 0;
+      @bottom-center { content: none; }
+    }
+    @page image-cover:first {
+      margin: 0;
+      @bottom-center { content: none; }
+    }
 
     .image-cover {
       page: image-cover;
