@@ -34,6 +34,9 @@ export function buildColophon(
   const note = colophon.note
     ? `<p class="colophon-note">${escapeText(colophon.note)}</p>`
     : "";
+  const copyright = colophon.copyright
+    ? `<p class="colophon-copyright">${escapeText(colophon.copyright)}</p>`
+    : "";
 
   return `
 <section class="colophon">
@@ -42,6 +45,7 @@ export function buildColophon(
     <table class="colophon-table">${rows}</table>
     ${note}
   </div>
+    ${copyright}
 </section>`;
 }
 
@@ -102,6 +106,11 @@ export function getColophonStyles(
     .colophon-note {
       margin: 8px 0 0;
       color: #555;
+    }
+    .colophon-copyright {
+      margin: 8px 0 0;
+      font-size: 9pt;
+      text-align: right;
     }
   `;
 }

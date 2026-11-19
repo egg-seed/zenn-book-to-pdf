@@ -41,6 +41,8 @@ export interface PdfColophon {
   title?: string;
   rows: ColophonRow[];
   note?: string;
+  /** 罫線の下に置く著作権の表示（例: "© 2026 発行者"）。 */
+  copyright?: string;
 }
 
 export interface PdfConfig {
@@ -444,6 +446,9 @@ function normalizeColophon(value: unknown): PdfColophon | null {
   }
   if (typeof value.note === "string") {
     colophon.note = value.note;
+  }
+  if (typeof value.copyright === "string") {
+    colophon.copyright = value.copyright;
   }
   return colophon;
 }

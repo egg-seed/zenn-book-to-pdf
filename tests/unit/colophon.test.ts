@@ -44,6 +44,17 @@ describe("colophon の設定", () => {
     expect(config.colophon?.rows).toHaveLength(2);
   });
 
+  it("note と copyright を読み込める", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      colophon: { ...colophon, note: "注記", copyright: "© 2026 発行者" },
+    });
+
+    const config = await loadPdfConfig();
+
+    expect(config.colophon?.note).toBe("注記");
+    expect(config.colophon?.copyright).toBe("© 2026 発行者");
+  });
+
   it("行の形が正しくなければ警告して無視する", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
@@ -93,6 +104,22 @@ describe("buildBookHtml の奥付", () => {
     });
 
     expect(html).toContain("<th>&lt;b&gt;</th><td>a &amp; b</td>");
+  });
+
+  it("copyright を指定すると、罫線の下に著作権の表示を置く", async () => {
+    const html = await buildBookHtml(makeBook(), {
+      colophon: { ...colophon, copyright: "© 2026 <発行者>" },
+    });
+
+    expect(html).toContain(
+      '</div>\n    <p class="colophon-copyright">© 2026 &lt;発行者&gt;</p>',
+    );
+  });
+
+  it("copyright がなければ著作権の表示を置かない", async () => {
+    const html = await buildBookHtml(makeBook(), { colophon });
+
+    expect(html).not.toContain('<p class="colophon-copyright">');
   });
 
   it("colophon がなければ奥付を置かない", async () => {
