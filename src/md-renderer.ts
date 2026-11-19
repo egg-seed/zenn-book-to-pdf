@@ -544,6 +544,10 @@ function getBookStyles(
       overflow-wrap: break-word;
       word-break: normal;
     }
+    /* 見出しの日本語も、ページ幅に収まるなら語の途中（「番／号」など）で改行しない */
+    .znc table.keep-headings th {
+      word-break: keep-all;
+    }
     .znc tr {
       break-inside: avoid;
       page-break-inside: avoid;

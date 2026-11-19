@@ -150,8 +150,9 @@ export async function renderPdfBuffer(
       });
     });
 
-    // 表は、まず単語の途中で改行しない組み方を試す。
-    // ページ幅に収まらない表（長いパスや識別子を含む表）だけ、どこでも改行する組み方に戻す。
+    // 表は、まず単語の途中で改行しない組み方を試す。見出しの日本語も語の途中で改行しない。
+    // ページ幅に収まらなければ、まず見出しの指定を外し、それでも収まらない表
+    // （長いパスや識別子を含む表）だけ、どこでも改行する組み方に戻す。
     await page.evaluate(async () => {
       await document.fonts.ready;
       document.querySelectorAll<HTMLElement>(".znc table").forEach((table) => {
@@ -159,7 +160,11 @@ export async function renderPdfBuffer(
         if (!container) {
           return;
         }
-        table.classList.add("keep-words");
+        // 関数を作ると tsx の __name がブラウザ側に入り込んで失敗するので、比較を2回書く
+        table.classList.add("keep-words", "keep-headings");
+        if (table.offsetWidth > container.clientWidth) {
+          table.classList.remove("keep-headings");
+        }
         if (table.offsetWidth > container.clientWidth) {
           table.classList.remove("keep-words");
         }
