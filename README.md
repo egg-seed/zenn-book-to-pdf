@@ -53,7 +53,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `pdf.config.json` はローカル用の設定ファイルとして扱います。
 - 共有用テンプレートは [pdf.config.example.json](pdf.config.example.json) を使用し、必要に応じてコピーして `pdf.config.json` を作成してください。
 - `--config` で指定した設定ファイルは、カレントディレクトリの `pdf.config.json` を完全に置き換えるのではなく、見つかった設定を順に上書きします。未指定の項目にはデフォルト値が使われます。
-- 生成された PDF と `pdf.config.json` は Git 管理しません。
+- 生成された PDF と `pdf.config.json` は Git 管理しません。本ごとの設定（例：`pdf.config.v2.json`）も `pdf.config*.json` に当たるので Git 管理しません。
 
 ### pdf.config.json の設定
 
@@ -134,6 +134,22 @@ book ディレクトリ直下に `cover.png` または `cover.jpeg` を配置す
 - 推奨サイズは 幅 500px・高さ 700px です。
 - 他サイズの画像でも PDF の表紙として全面配置されます。
 - 表紙画像が見つからない場合や読めない場合は、警告の上で従来のテキスト表紙だけを出力します。
+
+### 図の確認（scripts/）
+
+PDF に変換したあと、図が正しく入っているかを確かめるための Python スクリプトです。実行には [uv](https://docs.astral.sh/uv/) を使います。
+
+```bash
+# 図のあるページだけを集めた確認用 PDF を作る（図ごとにしおりが付く）
+uv run --no-project --with pypdf --with pyyaml python scripts/figpages.py ../zenn-tech-articles/books/my-book output.pdf output-figures.pdf
+
+# mermaid の図がページをまたいで分かれていないか調べる
+uv run --no-project --with pypdf --with pyyaml python scripts/splitcheck.py ../zenn-tech-articles/books/my-book output.pdf
+```
+
+- `figpages.py` は、Markdown の画像の数と PDF に入った画像の数を章ごとに比べ、違いがあれば表示します。
+- 表紙画像を付けた PDF を前提に、1 ページ目は数えません。
+- mermaid の図はノードのラベルの文字で探すため、ラベルが短い図は見つからないことがあります。
 
 ### 最小の book ディレクトリ構成
 
