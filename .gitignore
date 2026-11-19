@@ -11,3 +11,4 @@ pdf.config*.json
 !pdf.config.example.json
 .serena/
 __pycache__/
+local/

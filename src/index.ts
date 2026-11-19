@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import { parseBook } from "./book-parser.ts";
 import { buildBookHtml, resolveCoverImage } from "./md-renderer.ts";
 import { generatePdf } from "./pdf-generator.ts";
+import { resolveBackImage } from "./back-matter.ts";
 import { loadPdfConfig, type PdfConfig } from "./config-loader.ts";
 import { CliUsageError, parseCliArgs, printCliUsage } from "./cli-args.ts";
 
@@ -42,7 +43,11 @@ async function main(): Promise<void> {
   if (coverImage) {
     console.log(`  表紙画像: ${coverImage.fileName}`);
   }
-  const html = await buildBookHtml(book, pdfConfig, coverImage);
+  const backImage = await resolveBackImage(pdfConfig.backMatter);
+  if (backImage) {
+    console.log(`  奥付の前の画像: ${backImage.fileName}`);
+  }
+  const html = await buildBookHtml(book, pdfConfig, coverImage, backImage);
 
   console.log("📄 PDF を生成中...");
   await generatePdf(html, outputPath, pdfConfig);
