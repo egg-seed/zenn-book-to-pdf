@@ -7,6 +7,25 @@ import {
   type PdfHeaderFooter,
   type PdfMargin,
 } from "./config-loader.ts";
+import { getPaperSize } from "./md-renderer.ts";
+
+const CSS_PX_PER_UNIT: Record<string, number> = {
+  px: 1,
+  in: 96,
+  cm: 96 / 2.54,
+  mm: 96 / 25.4,
+  pt: 96 / 72,
+};
+
+/** "7mm" のような長さを CSS px に直す。読めない値は 0 とする。 */
+export function toCssPx(length: string): number {
+  const match = /^\s*([\d.]+)\s*(px|in|cm|mm|pt)?\s*$/i.exec(length);
+  if (!match) {
+    return 0;
+  }
+  const unit = (match[2] ?? "px").toLowerCase();
+  return parseFloat(match[1] ?? "0") * (CSS_PX_PER_UNIT[unit] ?? 1);
+}
 
 export interface PdfGenerationOverrides {
   margin?: PdfMargin;
@@ -55,6 +74,18 @@ export async function renderPdfBuffer(
   try {
     const page = await browser.newPage();
 
+    // 印刷時と同じ幅・同じメディアで組んでから計測する（タイトルの1行化や図の幅のため）
+    const [paperWidthIn] = getPaperSize(effectiveConfig.pageSize);
+    const contentWidth =
+      paperWidthIn * 96 -
+      toCssPx(effectiveConfig.margin.left) -
+      toCssPx(effectiveConfig.margin.right);
+    await page.setViewport({
+      width: Math.max(1, Math.floor(contentWidth)),
+      height: 800,
+    });
+    await page.emulateMediaType("print");
+
     await page.setContent(html, {
       waitUntil: effectiveConfig.render.waitUntil,
       timeout: effectiveConfig.render.navigationTimeout,
@@ -66,6 +97,31 @@ export async function renderPdfBuffer(
           img.loading = "eager";
         }
       });
+    });
+
+    // タイトルが少しだけはみ出すときは、文字を縮めて1行に収める。
+    // 18pt まで縮めても収まらない長いタイトルは、元の大きさで折り返す。
+    await page.evaluate(() => {
+      const title = document.querySelector<HTMLElement>(".book-title");
+      if (!title) {
+        return;
+      }
+      const original = parseFloat(getComputedStyle(title).fontSize);
+      const minimum = (18 * 96) / 72;
+      // 折り返す前の幅を基準にする（nowrap にすると親の幅が広がるため固定する）
+      const available = title.clientWidth;
+      title.style.width = `${available}px`;
+      title.style.whiteSpace = "nowrap";
+      let size = original;
+      while (title.scrollWidth > available && size > minimum) {
+        size -= 1;
+        title.style.fontSize = `${size}px`;
+      }
+      if (title.scrollWidth > available) {
+        title.style.whiteSpace = "";
+        title.style.fontSize = "";
+      }
+      title.style.width = "";
     });
 
     const mermaidError = await page.evaluate(async () => {
