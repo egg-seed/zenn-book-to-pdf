@@ -93,6 +93,14 @@ describe("表と改ページの CSS", () => {
     );
   });
 
+  it("keep-headings の表では、見出しの日本語を語の途中で改行しない", async () => {
+    const html = await buildBookHtml(makeBook("|番号|b|\n|-|-|\n|1|d|\n"), {});
+
+    expect(html).toMatch(
+      /\.znc table\.keep-headings th \{[^}]*word-break: keep-all;/,
+    );
+  });
+
   it("見出しとコードのファイル名の直後で改ページしない", async () => {
     const html = await buildBookHtml(makeBook("## 見出し\n"), {});
 
