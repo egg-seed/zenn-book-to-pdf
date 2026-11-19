@@ -185,12 +185,23 @@ export async function buildBookHtml(
 
 /**
  * 概要の文字列を HTML にする。エスケープしたうえで、**太字** だけを <strong> にする。
+ * 「・」で始まる行は、折り返した2行目以降を「・」の次の位置にそろえる。
  */
 export function formatSummary(summary: string): string {
-  return escapeHtml(summary).replace(
+  const html = escapeHtml(summary).replace(
     /\*\*([^*\n]+?)\*\*/g,
     "<strong>$1</strong>",
   );
+  const lines = html.split("\n");
+  return lines
+    .map((line, i) => {
+      if (line.startsWith("・")) {
+        // ブロック要素で改行されるので、後ろの改行文字は付けない
+        return `<span class="summary-item">${line}</span>`;
+      }
+      return i < lines.length - 1 ? `${line}\n` : line;
+    })
+    .join("");
 }
 
 /**
@@ -403,6 +414,11 @@ function getBookStyles(
     }
     .book-summary strong {
       color: #333;
+    }
+    .book-summary .summary-item {
+      display: block;
+      padding-left: 1em;
+      text-indent: -1em;
     }
 
     /* 目次 */
