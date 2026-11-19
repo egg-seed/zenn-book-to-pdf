@@ -100,7 +100,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `render`: PDF 化前の待機戦略と timeout です。詳細は次の通りです。
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
 - `pageNumbers`: `true` にすると、各ページの下中央にページ番号を入れます。表紙画像のページには入れません。`footer` の設定と違い、表紙だけ番号を消せます。既定は `false` です。
-- `colophon`: 最後のページの下に置く奥付です。`title`（省略すると `config.yaml` の書名）、`rows`（`label` と `value` の組の配列）、`note`（任意の一文）を書けます。`value` が URL だけならリンクにします。奥付のページにはページ番号を入れません。
+- `colophon`: 最後のページの下に置く奥付です。`title`（省略すると `config.yaml` の書名）、`rows`（`label` と `value` の組の配列）、`note`（任意の一文。情報がいつ時点のものかなど）、`copyright`（罫線の下に右寄せで置く著作権の表示）を書けます。`value` が URL だけならリンクにします。奥付のページにはページ番号を入れません。
 
 ```json
 "colophon": {
@@ -108,7 +108,9 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
     { "label": "発行日", "value": "2026年11月21日 第2版" },
     { "label": "著者", "value": "著者名" },
     { "label": "Zenn", "value": "https://zenn.dev/..." }
-  ]
+  ],
+  "note": "本書の内容は2026年11月時点の情報に基づいています。",
+  "copyright": "© 2026 発行者名"
 }
 ```
 
