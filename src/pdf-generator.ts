@@ -124,6 +124,32 @@ export async function renderPdfBuffer(
       title.style.width = "";
     });
 
+    // 罫線や矢印の文字で描いた図（ディレクトリツリーなど）は、折り返すと形が崩れる。
+    // 折り返さずに、収まるまで文字を縮める。元の 6 割まで縮めても収まらなければ折り返す。
+    await page.evaluate(() => {
+      const art = /[─│┌┐└┘├┤┬┴┼▶◀▲▼]/;
+      document.querySelectorAll<HTMLElement>(".znc pre").forEach((pre) => {
+        const code = pre.querySelector<HTMLElement>("code");
+        if (!code || !art.test(code.textContent ?? "")) {
+          return;
+        }
+        pre.style.whiteSpace = "pre";
+        if (pre.scrollWidth <= pre.clientWidth) {
+          return;
+        }
+        const original = parseFloat(getComputedStyle(code).fontSize);
+        let size = original;
+        while (pre.scrollWidth > pre.clientWidth && size > original * 0.6) {
+          size -= 0.25;
+          code.style.fontSize = `${size}px`;
+        }
+        if (pre.scrollWidth > pre.clientWidth) {
+          pre.style.whiteSpace = "";
+          code.style.fontSize = "";
+        }
+      });
+    });
+
     const mermaidError = await page.evaluate(async () => {
       const mermaid = (
         window as unknown as {
