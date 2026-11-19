@@ -167,7 +167,7 @@ export async function buildBookHtml(
   ${coverImage ? buildImageCoverSection(config.title, coverImage) : ""}
   <div class="cover">
     <h1 class="book-title">${escapeHtml(config.title ?? "")}</h1>
-    ${summary ? `<p class="book-summary">${escapeHtml(summary)}</p>` : ""}
+    ${summary ? `<p class="book-summary">${formatSummary(summary)}</p>` : ""}
   </div>
 
   <nav class="toc">
@@ -181,6 +181,16 @@ export async function buildBookHtml(
   ${buildMermaidScripts(chaptersHtml, fonts)}
 </body>
 </html>`;
+}
+
+/**
+ * 概要の文字列を HTML にする。エスケープしたうえで、**太字** だけを <strong> にする。
+ */
+export function formatSummary(summary: string): string {
+  return escapeHtml(summary).replace(
+    /\*\*([^*\n]+?)\*\*/g,
+    "<strong>$1</strong>",
+  );
 }
 
 /**
@@ -390,6 +400,9 @@ function getBookStyles(
       color: #555;
       line-height: 1.7;
       white-space: pre-line;
+    }
+    .book-summary strong {
+      color: #333;
     }
 
     /* 目次 */

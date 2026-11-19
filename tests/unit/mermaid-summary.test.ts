@@ -6,6 +6,7 @@ import { loadPdfConfig } from "../../src/config-loader.ts";
 import {
   buildBookHtml,
   convertMermaidEmbeds,
+  formatSummary,
   renderMarkdown,
   type ParsedBook,
 } from "../../src/md-renderer.ts";
@@ -112,5 +113,17 @@ describe("summary", () => {
     const html = await buildBookHtml(makeBook("本文", "Zenn用の概要"));
 
     expect(html).toContain("Zenn用の概要");
+  });
+});
+
+describe("formatSummary", () => {
+  it("**太字** を strong にし、ほかの HTML はエスケープする", () => {
+    expect(formatSummary("・**基礎**：<b>型</b>")).toBe(
+      "・<strong>基礎</strong>：&lt;b&gt;型&lt;/b&gt;",
+    );
+  });
+
+  it("対になっていない ** はそのまま残す", () => {
+    expect(formatSummary("a ** b")).toBe("a ** b");
   });
 });

@@ -98,7 +98,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `footer`: 各ページのフッター設定です。`enabled` を `true` にすると `template` に指定した HTML を表示します。デフォルトでは無効です。ページ番号を表示したい場合は、`template` 内で `<span class="pageNumber"></span>` と `<span class="totalPages"></span>` を使えます。
 - `fonts`: 本文と見出しのフォントファミリーです。`bodyFamily` と `headingFamily` に CSS の `font-family` 文字列を指定します。フォント設定の注意は [docs/font-setup.md](docs/font-setup.md) を参照してください。
 - `render`: PDF 化前の待機戦略と timeout です。詳細は次の通りです。
-- `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
+- `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
 
 #### 描画待機設定
 
