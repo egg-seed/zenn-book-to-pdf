@@ -118,8 +118,14 @@ describe("summary", () => {
 
 describe("formatSummary", () => {
   it("**太字** を strong にし、ほかの HTML はエスケープする", () => {
-    expect(formatSummary("・**基礎**：<b>型</b>")).toBe(
-      "・<strong>基礎</strong>：&lt;b&gt;型&lt;/b&gt;",
+    expect(formatSummary("**基礎**：<b>型</b>")).toBe(
+      "<strong>基礎</strong>：&lt;b&gt;型&lt;/b&gt;",
+    );
+  });
+
+  it("「・」で始まる行を、2行目以降を字下げする要素にする", () => {
+    expect(formatSummary("説明です。\n\n・**基礎**：型\n・構成")).toBe(
+      '説明です。\n\n<span class="summary-item">・<strong>基礎</strong>：型</span><span class="summary-item">・構成</span>',
     );
   });
 
