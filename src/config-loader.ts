@@ -31,6 +31,18 @@ export interface PdfRenderOptions {
   imageTimeout: number;
 }
 
+export interface ColophonRow {
+  label: string;
+  value: string;
+}
+
+export interface PdfColophon {
+  /** 奥付の書名。省略すると config.yaml の title を使う。 */
+  title?: string;
+  rows: ColophonRow[];
+  note?: string;
+}
+
 export interface PdfConfig {
   pageSize: PaperFormat;
   margin: PdfMargin;
@@ -42,6 +54,8 @@ export interface PdfConfig {
   summary?: string;
   /** 各ページの下中央にページ番号を入れる。表紙画像のページには入れない。 */
   pageNumbers?: boolean;
+  /** 最後のページに置く奥付。 */
+  colophon?: PdfColophon;
 }
 
 interface PdfConfigOverrides {
@@ -53,6 +67,7 @@ interface PdfConfigOverrides {
   render?: unknown;
   summary?: string;
   pageNumbers?: boolean;
+  colophon?: PdfColophon;
 }
 
 export const DEFAULT_CONFIG: PdfConfig = {
@@ -145,6 +160,7 @@ function mergeConfig(
     render,
     summary: overrides.summary ?? defaults.summary,
     pageNumbers: overrides.pageNumbers ?? defaults.pageNumbers,
+    colophon: overrides.colophon ?? defaults.colophon,
   };
 }
 
@@ -365,6 +381,17 @@ function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
     }
   }
 
+  if ("colophon" in value) {
+    const colophon = normalizeColophon(value.colophon);
+    if (colophon) {
+      overrides.colophon = colophon;
+    } else {
+      console.warn(
+        "⚠️  colophon の形が正しくありません。README の colophon の説明を見てください。",
+      );
+    }
+  }
+
   if ("pageNumbers" in value) {
     if (typeof value.pageNumbers === "boolean") {
       overrides.pageNumbers = value.pageNumbers;
@@ -392,4 +419,31 @@ function isPaperFormat(value: unknown): value is PaperFormat {
     "a5",
     "a6",
   ].includes(typeof value === "string" ? value.toLowerCase() : "");
+}
+
+function normalizeColophon(value: unknown): PdfColophon | null {
+  if (!isRecord(value) || !Array.isArray(value.rows)) {
+    return null;
+  }
+
+  const rows: ColophonRow[] = [];
+  for (const row of value.rows) {
+    if (
+      !isRecord(row) ||
+      typeof row.label !== "string" ||
+      typeof row.value !== "string"
+    ) {
+      return null;
+    }
+    rows.push({ label: row.label, value: row.value });
+  }
+
+  const colophon: PdfColophon = { rows };
+  if (typeof value.title === "string") {
+    colophon.title = value.title;
+  }
+  if (typeof value.note === "string") {
+    colophon.note = value.note;
+  }
+  return colophon;
 }

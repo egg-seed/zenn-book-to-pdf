@@ -3,7 +3,8 @@ import { readFileSync } from "fs";
 import { createRequire } from "module";
 import fs from "fs-extra";
 import path from "path";
-import type { PdfFonts, PdfMargin } from "./config-loader.ts";
+import type { PdfColophon, PdfFonts, PdfMargin } from "./config-loader.ts";
+import { buildColophon, getColophonStyles } from "./colophon.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -35,6 +36,7 @@ interface PdfConfigLike {
   summary?: string;
   pageSize?: string;
   pageNumbers?: boolean;
+  colophon?: PdfColophon;
 }
 
 /** Puppeteer の PaperFormat と同じ寸法（インチ、幅 x 高さ） */
@@ -154,6 +156,7 @@ export async function buildBookHtml(
   );
   const chaptersHtml = chaptersHtmlArray.join("\n");
   const summary = pdfConfig.summary ?? config.summary;
+  const colophon = pdfConfig.colophon;
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -163,6 +166,7 @@ export async function buildBookHtml(
   <style>${zennCss}</style>
   <style>${getBookStyles(fonts, margin, getPaperSize(pdfConfig.pageSize), pdfConfig.pageNumbers ?? false)}</style>
   ${coverImage ? `<style>${getImageCoverStyles(getPaperSize(pdfConfig.pageSize))}</style>` : ""}
+  ${colophon ? `<style>${getColophonStyles(getPaperSize(pdfConfig.pageSize)[1], margin, fonts.headingFamily || "sans-serif")}</style>` : ""}
 </head>
 <body>
   ${coverImage ? buildImageCoverSection(config.title, coverImage) : ""}
@@ -179,6 +183,7 @@ export async function buildBookHtml(
   <main class="content">
     ${chaptersHtml}
   </main>
+  ${buildColophon(colophon, config.title ?? "")}
   ${buildMermaidScripts(chaptersHtml, fonts)}
 </body>
 </html>`;
@@ -486,6 +491,11 @@ function getBookStyles(
       border-radius: 0;
       white-space: pre;
       overflow: visible;
+    }
+    /* mermaid が body の最後に足すツールチップ。PDF では使わず、
+       奥付の後ろに置かれると白紙のページを作るので消す */
+    .mermaidTooltip {
+      display: none !important;
     }
     .mermaid-diagram svg {
       display: block;
