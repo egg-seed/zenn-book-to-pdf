@@ -442,7 +442,12 @@ function getBookStyles(
     /* 章 */
     .chapter {
       page-break-before: always;
-      padding: 28px 22px;
+      /* 下の余白は付けない。章の最後がページの下端ちょうどで終わると、
+         余白だけが次のページに送られて白紙のページができるため。 */
+      padding: 28px 22px 0;
+    }
+    .chapter-body > :last-child {
+      margin-bottom: 0;
     }
     .chapter-title {
       font-size: 20pt;
@@ -450,6 +455,10 @@ function getBookStyles(
       border-bottom: 3px solid #3d7ebf;
       padding-bottom: 10px;
       margin-bottom: 28px;
+      /* 2行になる章題は行の長さをそろえ、日本語は文節の切れ目で折り返す
+         （最後の1文字だけが次の行に送られたり、「公/開する」のように単語の途中で切れたりしないようにする） */
+      text-wrap: balance;
+      word-break: auto-phrase;
     }
 
     /* 画像 */

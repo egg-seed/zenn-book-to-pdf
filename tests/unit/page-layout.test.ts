@@ -94,3 +94,19 @@ describe("表と改ページの CSS", () => {
     expect(html).toMatch(/\.chapter-body h2,/);
   });
 });
+
+describe("章題の折り返し", () => {
+  it("2行になる章題は行の長さをそろえ、文節の切れ目で折り返す", async () => {
+    const html = await buildBookHtml(makeBook("本文"), {});
+
+    expect(html).toMatch(
+      /\.chapter-title \{[^}]*text-wrap: balance;[^}]*word-break: auto-phrase;/,
+    );
+  });
+
+  it("章の下に余白を付けない（白紙のページを作らない）", async () => {
+    const html = await buildBookHtml(makeBook("本文"), {});
+
+    expect(html).toMatch(/\.chapter \{[^}]*padding: 28px 22px 0;/);
+  });
+});
