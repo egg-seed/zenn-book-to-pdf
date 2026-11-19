@@ -465,6 +465,13 @@ function getBookStyles(
       text-wrap: balance;
       word-break: auto-phrase;
     }
+    /* 節の見出しも同じく、最後の1文字だけが次の行に残らないようにする */
+    .chapter-body h2,
+    .chapter-body h3,
+    .chapter-body h4 {
+      text-wrap: balance;
+      word-break: auto-phrase;
+    }
 
     /* 画像 */
     .chapter-body img {

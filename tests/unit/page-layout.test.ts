@@ -120,6 +120,14 @@ describe("章題の折り返し", () => {
     );
   });
 
+  it("節の見出しも、行の長さをそろえ、文節の切れ目で折り返す", async () => {
+    const html = await buildBookHtml(makeBook("## 見出し\n"), {});
+
+    expect(html).toMatch(
+      /\.chapter-body h2,\s*\.chapter-body h3,\s*\.chapter-body h4 \{[^}]*text-wrap: balance;[^}]*word-break: auto-phrase;/,
+    );
+  });
+
   it("章の下に余白を付けない（白紙のページを作らない）", async () => {
     const html = await buildBookHtml(makeBook("本文"), {});
 
