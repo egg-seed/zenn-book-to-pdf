@@ -3,12 +3,8 @@ import { readFileSync } from "fs";
 import { createRequire } from "module";
 import fs from "fs-extra";
 import path from "path";
-import type { PdfBackMatter, PdfFonts, PdfMargin } from "./config-loader.ts";
-import {
-  buildBackMatter,
-  getBackMatterStyles,
-  type BackImage,
-} from "./back-matter.ts";
+import type { PdfColophon, PdfFonts, PdfMargin } from "./config-loader.ts";
+import { buildColophon, getColophonStyles } from "./colophon.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -40,7 +36,7 @@ interface PdfConfigLike {
   summary?: string;
   pageSize?: string;
   pageNumbers?: boolean;
-  backMatter?: PdfBackMatter;
+  colophon?: PdfColophon;
 }
 
 /** Puppeteer の PaperFormat と同じ寸法（インチ、幅 x 高さ） */
@@ -133,7 +129,6 @@ export async function buildBookHtml(
   book: ParsedBook,
   pdfConfig: PdfConfigLike = {},
   coverImage: CoverImage | null = null,
-  backImage: BackImage | null = null,
 ): Promise<string> {
   const { config, chapters } = book;
   const zennCss = getZennCss();
@@ -161,8 +156,7 @@ export async function buildBookHtml(
   );
   const chaptersHtml = chaptersHtmlArray.join("\n");
   const summary = pdfConfig.summary ?? config.summary;
-  const colophon = pdfConfig.backMatter?.colophon;
-  const hasBackMatter = backImage !== null || colophon !== undefined;
+  const colophon = pdfConfig.colophon;
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -172,7 +166,7 @@ export async function buildBookHtml(
   <style>${zennCss}</style>
   <style>${getBookStyles(fonts, margin, getPaperSize(pdfConfig.pageSize), pdfConfig.pageNumbers ?? false)}</style>
   ${coverImage ? `<style>${getImageCoverStyles(getPaperSize(pdfConfig.pageSize))}</style>` : ""}
-  ${hasBackMatter ? `<style>${getBackMatterStyles(getPaperSize(pdfConfig.pageSize), margin, fonts.headingFamily || "sans-serif")}</style>` : ""}
+  ${colophon ? `<style>${getColophonStyles(getPaperSize(pdfConfig.pageSize)[1], margin, fonts.headingFamily || "sans-serif")}</style>` : ""}
 </head>
 <body>
   ${coverImage ? buildImageCoverSection(config.title, coverImage) : ""}
@@ -189,7 +183,7 @@ export async function buildBookHtml(
   <main class="content">
     ${chaptersHtml}
   </main>
-  ${buildBackMatter(backImage, colophon, config.title ?? "")}
+  ${buildColophon(colophon, config.title ?? "")}
   ${buildMermaidScripts(chaptersHtml, fonts)}
 </body>
 </html>`;

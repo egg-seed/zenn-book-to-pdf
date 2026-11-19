@@ -43,13 +43,6 @@ export interface PdfColophon {
   note?: string;
 }
 
-export interface PdfBackMatter {
-  /** 本文の後に1ページで置く画像（著者紹介など）。設定ファイルからの相対パス。 */
-  image?: string;
-  /** 最後のページに置く奥付。 */
-  colophon?: PdfColophon;
-}
-
 export interface PdfConfig {
   pageSize: PaperFormat;
   margin: PdfMargin;
@@ -61,8 +54,8 @@ export interface PdfConfig {
   summary?: string;
   /** 各ページの下中央にページ番号を入れる。表紙画像のページには入れない。 */
   pageNumbers?: boolean;
-  /** 本文の後に置く画像と奥付。 */
-  backMatter?: PdfBackMatter;
+  /** 最後のページに置く奥付。 */
+  colophon?: PdfColophon;
 }
 
 interface PdfConfigOverrides {
@@ -74,7 +67,7 @@ interface PdfConfigOverrides {
   render?: unknown;
   summary?: string;
   pageNumbers?: boolean;
-  backMatter?: PdfBackMatter;
+  colophon?: PdfColophon;
 }
 
 export const DEFAULT_CONFIG: PdfConfig = {
@@ -137,7 +130,7 @@ export async function loadPdfConfig(
 
     try {
       const raw = (await fs.readJson(candidate)) as unknown;
-      const overrides = normalizeConfigOverrides(raw, path.dirname(candidate));
+      const overrides = normalizeConfigOverrides(raw);
       console.log(`📋 コンフィグを読み込みました: ${candidate}`);
       merged = mergeConfig(merged, overrides);
     } catch (err) {
@@ -167,7 +160,7 @@ function mergeConfig(
     render,
     summary: overrides.summary ?? defaults.summary,
     pageNumbers: overrides.pageNumbers ?? defaults.pageNumbers,
-    backMatter: overrides.backMatter ?? defaults.backMatter,
+    colophon: overrides.colophon ?? defaults.colophon,
   };
 }
 
@@ -344,10 +337,7 @@ function normalizeHeaderFooter(
   return normalized;
 }
 
-function normalizeConfigOverrides(
-  value: unknown,
-  baseDir: string = process.cwd(),
-): PdfConfigOverrides {
+function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
   if (!isRecord(value)) {
     return {};
   }
@@ -391,10 +381,14 @@ function normalizeConfigOverrides(
     }
   }
 
-  if ("backMatter" in value) {
-    const backMatter = normalizeBackMatter(value.backMatter, baseDir);
-    if (backMatter) {
-      overrides.backMatter = backMatter;
+  if ("colophon" in value) {
+    const colophon = normalizeColophon(value.colophon);
+    if (colophon) {
+      overrides.colophon = colophon;
+    } else {
+      console.warn(
+        "⚠️  colophon の形が正しくありません。README の colophon の説明を見てください。",
+      );
     }
   }
 
@@ -425,40 +419,6 @@ function isPaperFormat(value: unknown): value is PaperFormat {
     "a5",
     "a6",
   ].includes(typeof value === "string" ? value.toLowerCase() : "");
-}
-
-const BACK_MATTER_WARNING =
-  "⚠️  backMatter の形が正しくありません。README の「奥付」を見てください。";
-
-function normalizeBackMatter(
-  value: unknown,
-  baseDir: string,
-): PdfBackMatter | null {
-  if (!isRecord(value)) {
-    console.warn(BACK_MATTER_WARNING);
-    return null;
-  }
-
-  const result: PdfBackMatter = {};
-
-  if (value.image !== undefined) {
-    if (typeof value.image === "string" && value.image !== "") {
-      result.image = path.resolve(baseDir, value.image);
-    } else {
-      console.warn(BACK_MATTER_WARNING);
-    }
-  }
-
-  if (value.colophon !== undefined) {
-    const colophon = normalizeColophon(value.colophon);
-    if (colophon) {
-      result.colophon = colophon;
-    } else {
-      console.warn(BACK_MATTER_WARNING);
-    }
-  }
-
-  return result.image || result.colophon ? result : null;
 }
 
 function normalizeColophon(value: unknown): PdfColophon | null {
