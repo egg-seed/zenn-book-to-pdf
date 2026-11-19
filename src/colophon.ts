@@ -1,4 +1,5 @@
 import type { PdfColophon, PdfMargin } from "./config-loader.ts";
+import { splitTitle } from "./title.ts";
 
 function escapeText(value: string): string {
   return value
@@ -37,11 +38,15 @@ export function buildColophon(
   const copyright = colophon.copyright
     ? `<p class="colophon-copyright">${escapeText(colophon.copyright)}</p>`
     : "";
+  const title = splitTitle(colophon.title ?? bookTitle);
+  const subtitle = title.subtitle
+    ? `<span class="colophon-subtitle">${escapeText(title.subtitle)}</span>`
+    : "";
 
   return `
 <section class="colophon">
   <div class="colophon-box">
-    <p class="colophon-title">${escapeText(colophon.title ?? bookTitle)}</p>
+    <p class="colophon-title">${escapeText(title.main)}${subtitle}</p>
     <table class="colophon-table">${rows}</table>
     ${note}
   </div>
@@ -83,6 +88,10 @@ export function getColophonStyles(
       font-weight: 700;
       font-size: 13pt;
       margin: 0 0 8px;
+    }
+    .colophon-subtitle {
+      display: block;
+      font-size: 10.5pt;
     }
     .colophon-table {
       border-collapse: collapse;
