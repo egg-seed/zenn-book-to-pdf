@@ -13,3 +13,7 @@ pdf.config*.json
 !tests/fixtures/**/pdf.config.json
 .serena/
 __pycache__/
+
+# mise run setup-fonts で作るフォント（大きいので Git で管理しない）
+fonts/ttf/
+fonts/ttf-work-*/

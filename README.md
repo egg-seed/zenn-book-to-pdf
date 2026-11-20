@@ -23,7 +23,10 @@ Zenn 形式の Markdown / CSS を活かすことが出来るので、表紙・�
 ```bash
 mise install
 mise run setup
+mise run setup-fonts
 ```
+
+`mise run setup-fonts` は、PDF 用の TrueType フォントを `fonts/ttf/` に用意します（Linux。WSL を含む）。用意すると、変換ツールは自動でそのフォントだけを使い、入稿で問題になる Type 3 フォントの入らない PDF を作ります。詳しくは [docs/font-setup.md](docs/font-setup.md) を見てください。
 
 ## 使い方
 
@@ -106,8 +109,8 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
     "template": "<div style=\"width:100%;font-size:9px;color:#999;text-align:center;padding:0 25mm;\"><span class=\"pageNumber\"></span> / <span class=\"totalPages\"></span></div>"
   },
   "fonts": {
-    "bodyFamily": "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
-    "headingFamily": "'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', 'IPAexGothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif"
+    "bodyFamily": "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
+    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif"
   }
 }
 ```
@@ -124,7 +127,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
 - `pageNumbers`: `true` にすると、各ページの下中央にページ番号を入れます。表紙画像のページには入れません。`footer` の設定と違い、表紙だけ番号を消せます。既定は `false` です。
 - `fontCheck`: PDF を作ったあとのフォントの検査です。`warn`（既定。問題があれば警告する）/ `error`（問題があれば終了コード 1 で止まる）/ `off`（検査しない）のいずれかを指定します。ほかの値はエラーになります。詳しくは「フォントの検査（Type 3 フォント）」を見てください。
-- `fontconfigFile`: Chromium に使わせる fontconfig の設定ファイル（`fonts.conf`）のパスです。TrueType のフォントだけを見せる `fonts.conf` を指定すると、Type 3 フォントの入らない PDF を作れます（[docs/font-setup.md](docs/font-setup.md)）。相対パスは、その設定ファイルの場所を基準にします。ファイルがなければエラーになります。指定すると、環境変数 `FONTCONFIG_FILE` より優先します。`null` にすると、環境変数 `FONTCONFIG_FILE` も使わず、システムの設定を使います。Linux でだけ効きます（macOS と Windows の Chromium は fontconfig を使わないため）。使うときは `🔤 fontconfig: … を使います` と1行出します。
+- `fontconfigFile`: Chromium に使わせる fontconfig の設定ファイル（`fonts.conf`）のパスです。TrueType のフォントだけを見せる `fonts.conf` を指定すると、Type 3 フォントの入らない PDF を作れます（[docs/font-setup.md](docs/font-setup.md)）。相対パスは、その設定ファイルの場所を基準にします。ファイルがなければエラーになります。指定すると、環境変数 `FONTCONFIG_FILE` や、`mise run setup-fonts` で用意した `fonts/fonts.conf` より優先します。`null` にすると、環境変数 `FONTCONFIG_FILE` も `fonts/fonts.conf` も使わず、システムの設定を使います。指定しなければ、`fonts/ttf/` のフォントがそろっているときに `fonts/fonts.conf` を自動で使います。Linux でだけ効きます（macOS と Windows の Chromium は fontconfig を使わないため）。使うときは `🔤 fontconfig: … を使います` と1行出します。
 - `colophon`: 最後のページの下に置く奥付です。`title`（省略すると `config.yaml` の書名）、`rows`（`label` と `value` の組の配列）、`note`（任意の一文。情報がいつ時点のものかなど）、`copyright`（罫線の下に右寄せで置く著作権の表示）を書けます。`value` が URL だけならリンクにします。奥付のページにはページ番号を入れません。
 
 ```json

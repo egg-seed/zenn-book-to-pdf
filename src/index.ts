@@ -6,7 +6,11 @@ import { generatePdf } from "./pdf-generator.ts";
 import { loadPdfConfig, type PdfConfig } from "./config-loader.ts";
 import { CliUsageError, parseCliArgs, printCliUsage } from "./cli-args.ts";
 import type { FontCheckMode } from "./font-check.ts";
-import { resolveFontconfig } from "./fontconfig.ts";
+import {
+  checkFontFamilies,
+  namedFamilies,
+  resolveFontconfig,
+} from "./fontconfig.ts";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -39,9 +43,13 @@ async function main(): Promise<void> {
     : loadedConfig;
   const fontconfig = resolveFontconfig(pdfConfig.fontconfigFile);
   if (fontconfig.message) {
-    console.log(fontconfig.message);
+    if (fontconfig.level === "warn") {
+      console.warn(fontconfig.message);
+    } else {
+      console.log(fontconfig.message);
+    }
   }
-  warnIfNotoFontsUnavailable(pdfConfig, fontconfig.env);
+  warnIfFontsUnavailable(pdfConfig, fontconfig.env);
 
   console.log(`📖 Zenn book を読み込み中: ${bookPath}`);
   const book = await parseBook(bookPath);
@@ -60,44 +68,36 @@ async function main(): Promise<void> {
   console.log("✅ 完了!");
 }
 
-function warnIfNotoFontsUnavailable(
+/**
+ * 本文と見出しの先頭のフォントが、TrueType のフォントとして見つかるかを確かめる（Linux だけ）。
+ * Chromium と同じ fontconfig の設定（env）で調べる。
+ */
+function warnIfFontsUnavailable(
   pdfConfig: PdfConfig,
   env: NodeJS.ProcessEnv,
 ): void {
-  const bodyFamily = pdfConfig.fonts.bodyFamily;
-  const headingFamily = pdfConfig.fonts.headingFamily;
-  const selectedFonts = `${bodyFamily} ${headingFamily}`.toLowerCase();
-
-  if (!selectedFonts.includes("noto")) {
+  if (process.platform !== "linux") {
     return;
   }
 
-  const fcList = spawnSync("fc-list", ["--format=%{family}\n"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-    // Chromium と同じ fontconfig の設定でフォントを探す
-    env,
+  const families = [pdfConfig.fonts.bodyFamily, pdfConfig.fonts.headingFamily]
+    .map((fontFamily) => namedFamilies(fontFamily)[0])
+    .filter((family): family is string => family !== undefined);
+
+  const warnings = checkFontFamilies([...new Set(families)], (family) => {
+    const result = spawnSync(
+      "fc-match",
+      ["--format=%{family[0]}|%{fontformat}", family],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], env },
+    );
+    return {
+      ok: !result.error && result.status === 0,
+      stdout: result.stdout ?? "",
+    };
   });
 
-  if (fcList.error || fcList.status !== 0) {
-    console.warn(
-      "⚠️  Noto フォント利用時は環境にフォントが必要です。Linux では fonts-noto-cjk のインストールを検討してください。",
-    );
-    return;
-  }
-
-  const installedFamilies = fcList.stdout.toLowerCase();
-  const hasNotoSans =
-    installedFamilies.includes("noto sans jp") ||
-    installedFamilies.includes("noto sans cjk jp");
-  const hasNotoSerif =
-    installedFamilies.includes("noto serif jp") ||
-    installedFamilies.includes("noto serif cjk jp");
-
-  if (!hasNotoSans || !hasNotoSerif) {
-    console.warn(
-      "⚠️  Noto Sans/Serif JP が見つかりません。フォールバックフォントで出力される可能性があります。docs/font-setup.md を参照してインストールしてください。",
-    );
+  for (const warning of warnings) {
+    console.warn(warning);
   }
 }
 

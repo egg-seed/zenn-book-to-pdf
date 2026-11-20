@@ -1,6 +1,7 @@
 [tools]
 node = "24.15.0"
 pnpm = "10.30.3"
+uv = "0.10.7"
 
 [tasks.install]
 description = "Install dependencies"
@@ -9,6 +10,10 @@ run = "pnpm install --frozen-lockfile"
 [tasks.setup]
 description = "Install dependencies and git hooks"
 run = "mise run install && pnpm exec husky"
+
+[tasks.setup-fonts]
+description = "Download and build TrueType fonts for PDF into fonts/ttf (avoids Type 3 fonts)"
+run = "uv run --script scripts/setup-fonts.py"
 
 [tasks.convert]
 description = "Convert Zenn book to PDF"
