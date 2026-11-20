@@ -5,15 +5,17 @@ import { buildBookHtml, resolveCoverImage } from "./md-renderer.ts";
 import { generatePdf } from "./pdf-generator.ts";
 import { loadPdfConfig, type PdfConfig } from "./config-loader.ts";
 import { CliUsageError, parseCliArgs, printCliUsage } from "./cli-args.ts";
+import type { FontCheckMode } from "./font-check.ts";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let bookPath: string;
   let outputPath: string;
   let configPath: string | null;
+  let fontCheck: FontCheckMode | null;
 
   try {
-    ({ bookPath, outputPath, configPath } = parseCliArgs(args));
+    ({ bookPath, outputPath, configPath, fontCheck } = parseCliArgs(args));
   } catch (err) {
     if (err instanceof CliUsageError) {
       console.error(`エラー: ${err.message}`);
@@ -29,7 +31,11 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const pdfConfig = await loadPdfConfig(configPath ?? null);
+  const loadedConfig = await loadPdfConfig(configPath ?? null);
+  // --font-check は設定ファイルの fontCheck より優先する
+  const pdfConfig: PdfConfig = fontCheck
+    ? { ...loadedConfig, fontCheck }
+    : loadedConfig;
   warnIfNotoFontsUnavailable(pdfConfig);
 
   console.log(`📖 Zenn book を読み込み中: ${bookPath}`);

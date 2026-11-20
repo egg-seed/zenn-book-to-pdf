@@ -8,6 +8,20 @@ import {
   type PdfMargin,
 } from "./config-loader.ts";
 import { getPaperSize } from "./md-renderer.ts";
+import {
+  checkPdfFonts,
+  fontErrorOutputPath,
+  formatFontCheckReport,
+  type FontCheckMode,
+} from "./font-check.ts";
+
+/** fontCheck が "error" で、フォントに問題があった（または検査できなかった）とき。 */
+export class FontCheckError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FontCheckError";
+  }
+}
 
 const CSS_PX_PER_UNIT: Record<string, number> = {
   px: 1,
@@ -57,6 +71,46 @@ export async function savePdfBuffer(
 ): Promise<void> {
   await fs.writeFile(outputPath, pdfBuffer);
   console.log(`PDF を生成しました: ${path.resolve(outputPath)}`);
+}
+
+/**
+ * PDF のフォントを検査してから保存する。
+ * - "warn": 保存してから、問題があれば警告する。
+ * - "error": 問題があれば、指定した名前ではなく <名前>.font-error.pdf に保存して FontCheckError を投げる。
+ *   前に作った正しい PDF を上書きせず、問題の PDF を pdffonts や Acrobat で調べられるようにするため。
+ * - "off": 検査せずに保存する。
+ */
+export async function savePdfWithFontCheck(
+  pdfBuffer: Buffer,
+  outputPath: string,
+  mode: FontCheckMode,
+): Promise<void> {
+  if (mode === "off") {
+    await savePdfBuffer(pdfBuffer, outputPath);
+    return;
+  }
+
+  const report = formatFontCheckReport(await checkPdfFonts(pdfBuffer));
+
+  if (!report.ok && mode === "error") {
+    const errorPath = fontErrorOutputPath(outputPath);
+    await fs.writeFile(errorPath, pdfBuffer);
+    for (const line of report.lines) {
+      console.error(line);
+    }
+    throw new FontCheckError(
+      `フォントの検査で問題が見つかったので、PDF を ${path.resolve(errorPath)} に保存しました（${path.resolve(outputPath)} は更新していません）。`,
+    );
+  }
+
+  await savePdfBuffer(pdfBuffer, outputPath);
+  for (const line of report.lines) {
+    if (report.ok) {
+      console.log(line);
+    } else {
+      console.warn(line);
+    }
+  }
 }
 
 export async function renderPdfBuffer(
@@ -233,5 +287,5 @@ export async function generatePdf(
   overrides: PdfGenerationOverrides = {},
 ): Promise<void> {
   const pdfBuffer = await renderPdfBuffer(html, pdfConfig, overrides);
-  await savePdfBuffer(pdfBuffer, outputPath);
+  await savePdfWithFontCheck(pdfBuffer, outputPath, pdfConfig.fontCheck);
 }

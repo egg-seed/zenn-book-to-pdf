@@ -54,6 +54,28 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - 共有用テンプレートは [pdf.config.example.json](pdf.config.example.json) を使用し、必要に応じてコピーして `pdf.config.json` を作成してください。
 - `--config` で指定した設定ファイルは、カレントディレクトリの `pdf.config.json` を完全に置き換えるのではなく、見つかった設定を順に上書きします。未指定の項目にはデフォルト値が使われます。
 - 生成された PDF と `pdf.config.json` は Git 管理しません。本ごとの設定（例：`pdf.config.v2.json`）も `pdf.config*.json` に当たるので Git 管理しません。
+- `--config` で指定した設定ファイルが見つからない、または JSON として読めないときは、エラーで終了します（入稿用の設定が黙って効かなくなるのを防ぐため）。カレントディレクトリの `pdf.config.json` が読めないときは、警告して続けます。
+
+### フォントの検査（Type 3 フォント）
+
+PDF を作ったあと、PDF に入ったフォントを調べて、次の1行を出します。
+
+```text
+🔤 フォント: 埋め込み 8 書体、Type 3 なし、埋め込みなし なし
+```
+
+Type 3 のフォントや、埋め込まれていないフォントがあると、書体名と数を警告します。Type 3 のフォントは、入稿先によっては受け付けられません（技術書典では「T3_Font」として非承認になりました）。原因と対策は [docs/font-setup.md](docs/font-setup.md) を見てください。
+
+入稿用の PDF を作るときは、`--font-check error` を付けると、問題があれば終了コード 1 で止まります。
+
+```bash
+mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json --font-check error
+```
+
+- `--font-check` は、設定ファイルの `fontCheck` より優先します。値は `warn`（既定）/ `error` / `off` です。
+- `error` で問題が見つかったときは、PDF を指定した名前ではなく `<名前>.font-error.pdf`（例：`output.font-error.pdf`）に保存します。前に作った PDF は上書きしません。保存した PDF は `pdffonts` や Acrobat Reader で調べられます。
+- 検査できなかったとき（PDF を読めないなど）は、`warn` では警告し、`error` では失敗にします。
+- 検査は Chromium が作る PDF を対象にしています。863 ページの PDF で約 1 秒かかります。`off` にすると検査を省きます。
 
 ### pdf.config.json の設定
 
@@ -101,6 +123,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - 書名の副題：`config.yaml` の `title` が「書名: 副題」（半角コロンと空白）または「書名：副題」の形なら、2ページ目のタイトルページと奥付では、副題を別の行に小さく出します。PDF の文書情報の書名は、`title` をそのまま使います。
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
 - `pageNumbers`: `true` にすると、各ページの下中央にページ番号を入れます。表紙画像のページには入れません。`footer` の設定と違い、表紙だけ番号を消せます。既定は `false` です。
+- `fontCheck`: PDF を作ったあとのフォントの検査です。`warn`（既定。問題があれば警告する）/ `error`（問題があれば終了コード 1 で止まる）/ `off`（検査しない）のいずれかを指定します。ほかの値はエラーになります。詳しくは「フォントの検査（Type 3 フォント）」を見てください。
 - `colophon`: 最後のページの下に置く奥付です。`title`（省略すると `config.yaml` の書名）、`rows`（`label` と `value` の組の配列）、`note`（任意の一文。情報がいつ時点のものかなど）、`copyright`（罫線の下に右寄せで置く著作権の表示）を書けます。`value` が URL だけならリンクにします。奥付のページにはページ番号を入れません。
 
 ```json

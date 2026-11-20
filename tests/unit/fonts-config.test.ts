@@ -188,24 +188,60 @@ describe("fonts config", () => {
     expect(config.footer.enabled).toBe(false);
   });
 
-  it("--config が不正でも pdf.config.json の設定は維持される", async () => {
-    const cwdConfigPath = path.join(tmpDir, "pdf.config.json");
+  it("--config で指定したファイルが壊れていたらエラーにする", async () => {
     const brokenConfigPath = path.join(tmpDir, "broken.config.json");
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    await fs.writeJson(cwdConfigPath, {
-      margin: { top: "11mm" },
-      pageSize: "A4",
-    });
-
     await fs.writeFile(brokenConfigPath, "{ invalid json");
 
-    const config = await loadPdfConfig(brokenConfigPath);
+    await expect(loadPdfConfig(brokenConfigPath)).rejects.toThrow(
+      /コンフィグの読み込みに失敗しました/,
+    );
+  });
 
-    expect(config.pageSize).toBe("A4");
-    expect(config.margin.top).toBe("11mm");
+  it("--config で指定したファイルがなければエラーにする", async () => {
+    await expect(
+      loadPdfConfig(path.join(tmpDir, "missing.config.json")),
+    ).rejects.toThrow(/コンフィグが見つかりません/);
+  });
+
+  it("カレントディレクトリの pdf.config.json が壊れていても、警告して続ける", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await fs.writeFile(path.join(tmpDir, "pdf.config.json"), "{ invalid json");
+
+    const config = await loadPdfConfig();
+
+    expect(config.pageSize).toBe(DEFAULT_CONFIG.pageSize);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("コンフィグの読み込みに失敗"),
+    );
+  });
+});
+
+describe("fontCheck config", () => {
+  it("未指定なら warn", async () => {
+    const config = await loadPdfConfig();
+
+    expect(config.fontCheck).toBe("warn");
+  });
+
+  it("error / off を読み込む", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fontCheck: "error",
+    });
+    expect((await loadPdfConfig()).fontCheck).toBe("error");
+
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fontCheck: "off",
+    });
+    expect((await loadPdfConfig()).fontCheck).toBe("off");
+  });
+
+  it("warn / error / off 以外の値はエラーにする", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fontCheck: "strict",
+    });
+
+    await expect(loadPdfConfig()).rejects.toThrow(
+      /fontCheck は warn \/ error \/ off のいずれか/,
     );
   });
 });

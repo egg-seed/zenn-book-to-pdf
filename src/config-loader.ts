@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import type { PaperFormat } from "puppeteer";
+import { isFontCheckMode, type FontCheckMode } from "./font-check.ts";
 
 export type PdfWaitUntil =
   | "load"
@@ -58,6 +59,16 @@ export interface PdfConfig {
   pageNumbers?: boolean;
   /** 最後のページに置く奥付。 */
   colophon?: PdfColophon;
+  /** PDF を作ったあとの Type 3・埋め込みなしのフォントの検査。既定は "warn"。 */
+  fontCheck: FontCheckMode;
+}
+
+/** 設定の値が正しくないとき。黙って既定値に戻すと入稿用の設定が効かなくなるので、止める。 */
+export class PdfConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PdfConfigError";
+  }
 }
 
 interface PdfConfigOverrides {
@@ -70,6 +81,7 @@ interface PdfConfigOverrides {
   summary?: string;
   pageNumbers?: boolean;
   colophon?: PdfColophon;
+  fontCheck?: FontCheckMode;
 }
 
 export const DEFAULT_CONFIG: PdfConfig = {
@@ -109,6 +121,7 @@ export const DEFAULT_CONFIG: PdfConfig = {
     navigationTimeout: 60000,
     imageTimeout: 30000,
   },
+  fontCheck: "warn",
 };
 
 export async function loadPdfConfig(
@@ -116,31 +129,47 @@ export async function loadPdfConfig(
 ): Promise<PdfConfig> {
   let merged: PdfConfig = { ...DEFAULT_CONFIG };
   const cwdConfigPath = path.join(process.cwd(), "pdf.config.json");
+  const explicitConfigPath = configPath ? path.resolve(configPath) : null;
   const candidates = [cwdConfigPath];
 
-  if (configPath) {
-    const resolvedConfigPath = path.resolve(configPath);
-    if (resolvedConfigPath !== cwdConfigPath) {
-      candidates.push(resolvedConfigPath);
-    }
+  if (explicitConfigPath && explicitConfigPath !== cwdConfigPath) {
+    candidates.push(explicitConfigPath);
   }
 
   for (const candidate of candidates) {
+    const isExplicit = candidate === explicitConfigPath;
     if (!(await fs.pathExists(candidate))) {
+      if (isExplicit) {
+        // --config で指定したファイルがないまま続けると、入稿用の設定（fontCheck など）が効かない
+        throw new PdfConfigError(`コンフィグが見つかりません: ${candidate}`);
+      }
       continue;
     }
 
+    let raw: unknown;
     try {
-      const raw = (await fs.readJson(candidate)) as unknown;
-      const overrides = normalizeConfigOverrides(raw);
-      console.log(`📋 コンフィグを読み込みました: ${candidate}`);
-      merged = mergeConfig(merged, overrides);
+      raw = (await fs.readJson(candidate)) as unknown;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `⚠️  コンフィグの読み込みに失敗しました (${candidate}): ${message}`,
-      );
+      const text = `コンフィグの読み込みに失敗しました (${candidate}): ${message}`;
+      if (isExplicit) {
+        throw new PdfConfigError(text);
+      }
+      console.warn(`⚠️  ${text}`);
+      continue;
     }
+
+    let overrides: PdfConfigOverrides;
+    try {
+      overrides = normalizeConfigOverrides(raw);
+    } catch (err) {
+      if (err instanceof PdfConfigError) {
+        throw new PdfConfigError(`${err.message} (${candidate})`);
+      }
+      throw err;
+    }
+    console.log(`📋 コンフィグを読み込みました: ${candidate}`);
+    merged = mergeConfig(merged, overrides);
   }
 
   return merged;
@@ -163,6 +192,7 @@ function mergeConfig(
     summary: overrides.summary ?? defaults.summary,
     pageNumbers: overrides.pageNumbers ?? defaults.pageNumbers,
     colophon: overrides.colophon ?? defaults.colophon,
+    fontCheck: overrides.fontCheck ?? defaults.fontCheck,
   };
 }
 
@@ -402,6 +432,15 @@ function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
         "⚠️  pageNumbers は true か false で指定してください。ページ番号は入れません。",
       );
     }
+  }
+
+  if ("fontCheck" in value) {
+    if (!isFontCheckMode(value.fontCheck)) {
+      throw new PdfConfigError(
+        "fontCheck は warn / error / off のいずれかを指定してください。",
+      );
+    }
+    overrides.fontCheck = value.fontCheck;
   }
 
   return overrides;

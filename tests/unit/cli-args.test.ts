@@ -15,6 +15,7 @@ describe("parseCliArgs", () => {
       bookPath: path.resolve(cwd, "book"),
       outputPath: path.resolve(cwd, "output.pdf"),
       configPath: path.resolve(cwd, "pdf.config.json"),
+      fontCheck: null,
     });
   });
 
@@ -33,6 +34,35 @@ describe("parseCliArgs", () => {
   it("--config の値が空文字ならエラーにする", () => {
     expect(() => parseCliArgs(["book", "--config", ""], cwd)).toThrow(
       "--config にはファイルパスが必要です。",
+    );
+  });
+});
+
+describe("parseCliArgs --font-check", () => {
+  it("未指定なら null", () => {
+    expect(parseCliArgs(["book"], cwd).fontCheck).toBeNull();
+  });
+
+  it("warn / error / off を受け付け、位置引数から外す", () => {
+    const result = parseCliArgs(
+      ["book", "--font-check", "error", "out.pdf", "--config", "c.json"],
+      cwd,
+    );
+
+    expect(result).toEqual({
+      bookPath: path.resolve(cwd, "book"),
+      outputPath: path.resolve(cwd, "out.pdf"),
+      configPath: path.resolve(cwd, "c.json"),
+      fontCheck: "error",
+    });
+  });
+
+  it("値がない、または不正な値ならエラーにする", () => {
+    expect(() => parseCliArgs(["book", "--font-check"], cwd)).toThrow(
+      CliUsageError,
+    );
+    expect(() => parseCliArgs(["book", "--font-check", "strict"], cwd)).toThrow(
+      "--font-check には warn / error / off のいずれかを指定してください。",
     );
   });
 });
