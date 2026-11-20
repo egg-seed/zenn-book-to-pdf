@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import type { PaperFormat } from "puppeteer";
 import { isFontCheckMode, type FontCheckMode } from "./font-check.ts";
+import { isGlyphCheckMode, type GlyphCheckMode } from "./glyph-check.ts";
 
 export type PdfWaitUntil =
   | "load"
@@ -61,6 +62,8 @@ export interface PdfConfig {
   colophon?: PdfColophon;
   /** PDF を作ったあとの Type 3・埋め込みなしのフォントの検査。既定は "warn"。 */
   fontCheck: FontCheckMode;
+  /** PDF を作る前の、フォントにない字（豆腐）の検査。既定は "warn"。 */
+  glyphCheck: GlyphCheckMode;
   /**
    * Chromium に使わせる fontconfig の設定ファイル（絶対パス。Linux でだけ効く）。
    * null ならシステムの設定を使う。未指定なら環境変数 FONTCONFIG_FILE、それもなければシステムの設定。
@@ -87,6 +90,7 @@ interface PdfConfigOverrides {
   pageNumbers?: boolean;
   colophon?: PdfColophon;
   fontCheck?: FontCheckMode;
+  glyphCheck?: GlyphCheckMode;
   fontconfigFile?: string | null;
 }
 
@@ -128,6 +132,7 @@ export const DEFAULT_CONFIG: PdfConfig = {
     imageTimeout: 30000,
   },
   fontCheck: "warn",
+  glyphCheck: "warn",
 };
 
 export async function loadPdfConfig(
@@ -207,6 +212,7 @@ function mergeConfig(
     pageNumbers: overrides.pageNumbers ?? defaults.pageNumbers,
     colophon: overrides.colophon ?? defaults.colophon,
     fontCheck: overrides.fontCheck ?? defaults.fontCheck,
+    glyphCheck: overrides.glyphCheck ?? defaults.glyphCheck,
     fontconfigFile:
       overrides.fontconfigFile !== undefined
         ? overrides.fontconfigFile
@@ -462,6 +468,15 @@ function normalizeConfigOverrides(
       );
     }
     overrides.fontCheck = value.fontCheck;
+  }
+
+  if ("glyphCheck" in value) {
+    if (!isGlyphCheckMode(value.glyphCheck)) {
+      throw new PdfConfigError(
+        "glyphCheck は warn / error / off のいずれかを指定してください。",
+      );
+    }
+    overrides.glyphCheck = value.glyphCheck;
   }
 
   if ("fontconfigFile" in value) {

@@ -80,6 +80,33 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - 検査できなかったとき（PDF を読めないなど）は、`warn` では警告し、`error` では失敗にします。
 - 検査は Chromium が作る PDF を対象にしています。863 ページの PDF で約 1 秒かかります。`off` にすると検査を省きます。
 
+### 字の検査（豆腐）
+
+PDF を作る前に、本の字（本文、目次、奥付、Mermaid の図の文字、ヘッダー・フッター）を1字ずつ調べ、フォントにない字（PDF では豆腐 □ になる字）を探します。Type 3 にはならないので、フォントの検査では見つかりません。
+
+```text
+🔡 字: 1020 種類の字が、すべてフォントにあります（豆腐なし）
+```
+
+フォントにない字があると、文字コード、字、章の名前、回数を出します。
+
+```text
+⚠️  フォントにない字が 4 種類あります（PDF では豆腐 □ になります）：
+   U+D55C 한：第3章 認証（2回）
+```
+
+- 調べるフォントは、Chromium と同じ fontconfig の設定で見えるフォントです（`fc-list` で字の一覧を取ります）。`fonts/fonts.conf` を使うときは、`mise run setup-fonts` で用意したフォントです。
+- 結合文字、書式文字（ZWJ など）、異体字セレクタ（U+FE0F など）は調べません。
+- `--glyph-check` は、設定ファイルの `glyphCheck` より優先します。値は `warn`（既定）/ `error` / `off` です。`error` でフォントにない字があれば、PDF を作らずに終了コード 1 で止まります。`fc-list` を使えないなどで調べられなかったときも、`warn` では警告し、`error` では止まります。
+- Linux でだけ行います（macOS と Windows の Chromium は fontconfig でフォントを選ばないため）。
+- 直し方は [docs/font-setup.md](docs/font-setup.md) の「豆腐（フォントにない字）」を見てください。
+
+入稿用の PDF は、2つの検査を `error` にして作るのがおすすめです。
+
+```bash
+mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json --font-check error --glyph-check error
+```
+
 ### pdf.config.json の設定
 
 `pdf.config.json` では、PDF の用紙サイズ、余白、ヘッダー／フッター、フォント、描画待機設定を調整できます。共有用のひな形は [pdf.config.example.json](pdf.config.example.json) を参照してください。
@@ -127,6 +154,7 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
 - `pageNumbers`: `true` にすると、各ページの下中央にページ番号を入れます。表紙画像のページには入れません。`footer` の設定と違い、表紙だけ番号を消せます。既定は `false` です。
 - `fontCheck`: PDF を作ったあとのフォントの検査です。`warn`（既定。問題があれば警告する）/ `error`（問題があれば終了コード 1 で止まる）/ `off`（検査しない）のいずれかを指定します。ほかの値はエラーになります。詳しくは「フォントの検査（Type 3 フォント）」を見てください。
+- `glyphCheck`: PDF を作る前の、フォントにない字（豆腐）の検査です。`warn`（既定）/ `error`（PDF を作らずに終了コード 1 で止まる）/ `off`（検査しない）のいずれかを指定します。ほかの値はエラーになります。詳しくは「字の検査（豆腐）」を見てください。
 - `fontconfigFile`: Chromium に使わせる fontconfig の設定ファイル（`fonts.conf`）のパスです。TrueType のフォントだけを見せる `fonts.conf` を指定すると、Type 3 フォントの入らない PDF を作れます（[docs/font-setup.md](docs/font-setup.md)）。相対パスは、その設定ファイルの場所を基準にします。ファイルがなければエラーになります。指定すると、環境変数 `FONTCONFIG_FILE` や、`mise run setup-fonts` で用意した `fonts/fonts.conf` より優先します。`null` にすると、環境変数 `FONTCONFIG_FILE` も `fonts/fonts.conf` も使わず、システムの設定を使います。指定しなければ、`fonts/ttf/` のフォントがそろっているときに `fonts/fonts.conf` を自動で使います。Linux でだけ効きます（macOS と Windows の Chromium は fontconfig を使わないため）。使うときは `🔤 fontconfig: … を使います` と1行出します。
 - `colophon`: 最後のページの下に置く奥付です。`title`（省略すると `config.yaml` の書名）、`rows`（`label` と `value` の組の配列）、`note`（任意の一文。情報がいつ時点のものかなど）、`copyright`（罫線の下に右寄せで置く著作権の表示）を書けます。`value` が URL だけならリンクにします。奥付のページにはページ番号を入れません。
 

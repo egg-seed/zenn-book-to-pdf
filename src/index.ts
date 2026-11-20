@@ -7,6 +7,14 @@ import { loadPdfConfig, type PdfConfig } from "./config-loader.ts";
 import { CliUsageError, parseCliArgs, printCliUsage } from "./cli-args.ts";
 import type { FontCheckMode } from "./font-check.ts";
 import {
+  checkGlyphs,
+  extractTextSegments,
+  htmlToText,
+  reportGlyphCheck,
+  type GlyphCheckMode,
+  type TextSegment,
+} from "./glyph-check.ts";
+import {
   checkFontFamilies,
   namedFamilies,
   resolveFontconfig,
@@ -18,9 +26,11 @@ async function main(): Promise<void> {
   let outputPath: string;
   let configPath: string | null;
   let fontCheck: FontCheckMode | null;
+  let glyphCheck: GlyphCheckMode | null;
 
   try {
-    ({ bookPath, outputPath, configPath, fontCheck } = parseCliArgs(args));
+    ({ bookPath, outputPath, configPath, fontCheck, glyphCheck } =
+      parseCliArgs(args));
   } catch (err) {
     if (err instanceof CliUsageError) {
       console.error(`エラー: ${err.message}`);
@@ -37,10 +47,12 @@ async function main(): Promise<void> {
   }
 
   const loadedConfig = await loadPdfConfig(configPath ?? null);
-  // --font-check は設定ファイルの fontCheck より優先する
-  const pdfConfig: PdfConfig = fontCheck
-    ? { ...loadedConfig, fontCheck }
-    : loadedConfig;
+  // --font-check と --glyph-check は、設定ファイルの値より優先する
+  const pdfConfig: PdfConfig = {
+    ...loadedConfig,
+    fontCheck: fontCheck ?? loadedConfig.fontCheck,
+    glyphCheck: glyphCheck ?? loadedConfig.glyphCheck,
+  };
   const fontconfig = resolveFontconfig(pdfConfig.fontconfigFile);
   if (fontconfig.message) {
     if (fontconfig.level === "warn") {
@@ -63,9 +75,47 @@ async function main(): Promise<void> {
   }
   const html = await buildBookHtml(book, pdfConfig, coverImage);
 
+  if (pdfConfig.glyphCheck !== "off") {
+    reportGlyphCheck(
+      checkGlyphs(textSegmentsOf(html, pdfConfig), {
+        platform: process.platform,
+        runFcList: () => runFcList(fontconfig.env),
+      }),
+      pdfConfig.glyphCheck,
+    );
+  }
+
   console.log("📄 PDF を生成中...");
   await generatePdf(html, outputPath, pdfConfig);
   console.log("✅ 完了!");
+}
+
+/** 字の検査で調べる文字列：組み立てた HTML と、使うときはヘッダー・フッター。 */
+function textSegmentsOf(html: string, pdfConfig: PdfConfig): TextSegment[] {
+  const headerFooter = [pdfConfig.header, pdfConfig.footer]
+    .filter((part) => part.enabled)
+    .map((part) => htmlToText(part.template))
+    .join(" ");
+  return [
+    ...extractTextSegments(html),
+    ...(headerFooter.trim()
+      ? [{ label: "ヘッダー・フッター", text: headerFooter }]
+      : []),
+  ];
+}
+
+/** Chromium と同じ fontconfig の設定（env）で、見えるフォントの字の一覧を取る。 */
+function runFcList(env: NodeJS.ProcessEnv): { ok: boolean; stdout: string } {
+  const result = spawnSync("fc-list", ["--format=%{charset}\\n"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    env,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return {
+    ok: !result.error && result.status === 0,
+    stdout: result.stdout ?? "",
+  };
 }
 
 /**

@@ -16,6 +16,7 @@ describe("parseCliArgs", () => {
       outputPath: path.resolve(cwd, "output.pdf"),
       configPath: path.resolve(cwd, "pdf.config.json"),
       fontCheck: null,
+      glyphCheck: null,
     });
   });
 
@@ -54,6 +55,7 @@ describe("parseCliArgs --font-check", () => {
       outputPath: path.resolve(cwd, "out.pdf"),
       configPath: path.resolve(cwd, "c.json"),
       fontCheck: "error",
+      glyphCheck: null,
     });
   });
 
@@ -63,6 +65,38 @@ describe("parseCliArgs --font-check", () => {
     );
     expect(() => parseCliArgs(["book", "--font-check", "strict"], cwd)).toThrow(
       "--font-check には warn / error / off のいずれかを指定してください。",
+    );
+  });
+});
+
+describe("parseCliArgs --glyph-check", () => {
+  it("未指定なら null", () => {
+    expect(parseCliArgs(["book"], cwd).glyphCheck).toBeNull();
+  });
+
+  it("warn / error / off を受け付け、位置引数から外す", () => {
+    const result = parseCliArgs(
+      ["book", "--glyph-check", "error", "out.pdf", "--font-check", "off"],
+      cwd,
+    );
+
+    expect(result).toEqual({
+      bookPath: path.resolve(cwd, "book"),
+      outputPath: path.resolve(cwd, "out.pdf"),
+      configPath: null,
+      fontCheck: "off",
+      glyphCheck: "error",
+    });
+  });
+
+  it("値がない、または不正な値ならエラーにする", () => {
+    expect(() => parseCliArgs(["book", "--glyph-check"], cwd)).toThrow(
+      CliUsageError,
+    );
+    expect(() =>
+      parseCliArgs(["book", "--glyph-check", "strict"], cwd),
+    ).toThrow(
+      "--glyph-check には warn / error / off のいずれかを指定してください。",
     );
   });
 });

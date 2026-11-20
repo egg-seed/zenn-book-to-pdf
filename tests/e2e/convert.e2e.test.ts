@@ -99,6 +99,10 @@ describe("CLI E2E", () => {
 
     // PDF を作ったあとにフォントを検査し、要約の1行を出す（結果は環境のフォントによる）
     expect(`${stdout}\n${stderr}`).toContain("🔤 フォント:");
+    // PDF を作る前に字を検査する（Linux だけ。結果は環境のフォントによる）
+    if (process.platform === "linux") {
+      expect(`${stdout}\n${stderr}`).toMatch(/🔡 字|フォントにない字/);
+    }
   }, 120000);
 
   it("--font-check の値が正しくなければ、PDF を作らずに終了コード 1 で終わる", async () => {
@@ -117,6 +121,55 @@ describe("CLI E2E", () => {
     expect(stderr).toContain("--font-check には warn / error / off");
     expect(await fs.pathExists(outputPath)).toBe(false);
   }, 120000);
+
+  it("--glyph-check の値が正しくなければ、PDF を作らずに終了コード 1 で終わる", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zenn-pdf-e2e-"));
+    tempDirs.push(tmpDir);
+
+    const outputPath = path.join(tmpDir, "output.pdf");
+    const { code, stderr } = await runCli([
+      fixtureBookPath,
+      outputPath,
+      "--glyph-check",
+      "strict",
+    ]);
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("--glyph-check には warn / error / off");
+    expect(await fs.pathExists(outputPath)).toBe(false);
+  }, 120000);
+
+  // どのフォントにもない字（私用領域の U+10FFFD）を本文に入れる。字の検査は Linux でだけ行う。
+  it.runIf(process.platform === "linux")(
+    "--glyph-check error で、フォントにない字があれば、PDF を作らずに終了コード 1 で終わる",
+    async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zenn-pdf-e2e-"));
+      tempDirs.push(tmpDir);
+
+      const bookPath = await createFixtureBookCopy(tmpDir);
+      await fs.appendFile(
+        path.join(bookPath, "chapter1.md"),
+        "\n豆腐になる字：\u{10FFFD}\n",
+      );
+      const outputPath = path.join(tmpDir, "output.pdf");
+      const { code, stderr } = await runCli([
+        bookPath,
+        outputPath,
+        "--config",
+        fixtureConfigPath,
+        "--glyph-check",
+        "error",
+      ]);
+
+      expect(code).toBe(1);
+      // 環境のフォントによっては、ほかの字（日本語など）も見つかるので、数は確かめない
+      expect(stderr).toContain("フォントにない字が");
+      expect(stderr).toContain("U+10FFFD");
+      expect(stderr).toContain("PDF を作りませんでした");
+      expect(await fs.pathExists(outputPath)).toBe(false);
+    },
+    120000,
+  );
 
   it("fontconfigFile のファイルがなければ、PDF を作らずに終了コード 1 で終わる", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zenn-pdf-e2e-"));
