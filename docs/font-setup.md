@@ -25,7 +25,7 @@ TrueType のフォントだけを Chromium に見せると、Type 3 は入りま
 
 1. Google Fonts の可変 TTF（Noto Sans JP、Noto Serif JP、Noto Emoji）から、fontTools の `instancer` で Regular（400）と Bold（700）の固定版を作ります。
 2. そのフォントと、TrueType の等幅フォント（Liberation Mono など）だけを読み込む `fonts.conf` を作ります。
-3. `FONTCONFIG_FILE` に `fonts.conf` の絶対パスを指定して変換します（相対パスで指定すると、何も言わずにシステムの設定に戻ります）。
+3. 設定ファイルの `fontconfigFile` に `fonts.conf` のパスを書いて変換します（例：`"fontconfigFile": "/path/to/fonts.conf"`。相対パスは設定ファイルの場所が基準）。環境変数 `FONTCONFIG_FILE` で指定することもできます。どちらも Linux でだけ効きます。
 4. 設定の `fonts` は、`'Noto Serif JP'` と `'Noto Sans JP'` を先頭にし、`'Noto Emoji'` を続けます。
 
 この方法では、絵文字は白黒になります。

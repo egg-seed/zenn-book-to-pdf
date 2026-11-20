@@ -6,6 +6,7 @@ import { generatePdf } from "./pdf-generator.ts";
 import { loadPdfConfig, type PdfConfig } from "./config-loader.ts";
 import { CliUsageError, parseCliArgs, printCliUsage } from "./cli-args.ts";
 import type { FontCheckMode } from "./font-check.ts";
+import { resolveFontconfig } from "./fontconfig.ts";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -36,7 +37,11 @@ async function main(): Promise<void> {
   const pdfConfig: PdfConfig = fontCheck
     ? { ...loadedConfig, fontCheck }
     : loadedConfig;
-  warnIfNotoFontsUnavailable(pdfConfig);
+  const fontconfig = resolveFontconfig(pdfConfig.fontconfigFile);
+  if (fontconfig.message) {
+    console.log(fontconfig.message);
+  }
+  warnIfNotoFontsUnavailable(pdfConfig, fontconfig.env);
 
   console.log(`📖 Zenn book を読み込み中: ${bookPath}`);
   const book = await parseBook(bookPath);
@@ -55,7 +60,10 @@ async function main(): Promise<void> {
   console.log("✅ 完了!");
 }
 
-function warnIfNotoFontsUnavailable(pdfConfig: PdfConfig): void {
+function warnIfNotoFontsUnavailable(
+  pdfConfig: PdfConfig,
+  env: NodeJS.ProcessEnv,
+): void {
   const bodyFamily = pdfConfig.fonts.bodyFamily;
   const headingFamily = pdfConfig.fonts.headingFamily;
   const selectedFonts = `${bodyFamily} ${headingFamily}`.toLowerCase();
@@ -67,6 +75,8 @@ function warnIfNotoFontsUnavailable(pdfConfig: PdfConfig): void {
   const fcList = spawnSync("fc-list", ["--format=%{family}\n"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
+    // Chromium と同じ fontconfig の設定でフォントを探す
+    env,
   });
 
   if (fcList.error || fcList.status !== 0) {

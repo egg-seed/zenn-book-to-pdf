@@ -8,6 +8,7 @@ import {
   type PdfMargin,
 } from "./config-loader.ts";
 import { getPaperSize } from "./md-renderer.ts";
+import { resolveFontconfig } from "./fontconfig.ts";
 import {
   checkPdfFonts,
   fontErrorOutputPath,
@@ -122,6 +123,8 @@ export async function renderPdfBuffer(
 
   const browser = await puppeteer.launch({
     headless: true,
+    // env は子プロセスの環境変数を丸ごと置き換えるので、今の環境変数に FONTCONFIG_FILE を足したものを渡す
+    env: resolveFontconfig(effectiveConfig.fontconfigFile).env,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
