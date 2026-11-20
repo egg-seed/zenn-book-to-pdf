@@ -118,6 +118,25 @@ describe("CLI E2E", () => {
     expect(await fs.pathExists(outputPath)).toBe(false);
   }, 120000);
 
+  it("fontconfigFile のファイルがなければ、PDF を作らずに終了コード 1 で終わる", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zenn-pdf-e2e-"));
+    tempDirs.push(tmpDir);
+
+    const configPath = path.join(tmpDir, "book.config.json");
+    await fs.writeJson(configPath, { fontconfigFile: "missing/fonts.conf" });
+    const outputPath = path.join(tmpDir, "output.pdf");
+    const { code, stderr } = await runCli([
+      fixtureBookPath,
+      outputPath,
+      "--config",
+      configPath,
+    ]);
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("fontconfigFile のファイルが見つかりません");
+    expect(await fs.pathExists(outputPath)).toBe(false);
+  }, 120000);
+
   it("cover.png がある場合は画像表紙を追加した PDF を生成できる", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zenn-pdf-cover-"));
     tempDirs.push(tmpDir);

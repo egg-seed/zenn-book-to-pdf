@@ -245,3 +245,54 @@ describe("fontCheck config", () => {
     );
   });
 });
+
+describe("fontconfigFile config", () => {
+  it("未指定なら undefined", async () => {
+    expect((await loadPdfConfig()).fontconfigFile).toBeUndefined();
+  });
+
+  it("相対パスは、設定ファイルの場所を基準に絶対パスにする", async () => {
+    const configDir = path.join(tmpDir, "configs");
+    await fs.ensureDir(path.join(configDir, "fonts"));
+    await fs.writeFile(
+      path.join(configDir, "fonts", "fonts.conf"),
+      "<fontconfig/>",
+    );
+    const configPath = path.join(configDir, "book.config.json");
+    await fs.writeJson(configPath, { fontconfigFile: "fonts/fonts.conf" });
+
+    const config = await loadPdfConfig(configPath);
+
+    expect(config.fontconfigFile).toBe(
+      path.join(configDir, "fonts", "fonts.conf"),
+    );
+  });
+
+  it("null を読み込む（システムの設定を使う）", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fontconfigFile: null,
+    });
+
+    expect((await loadPdfConfig()).fontconfigFile).toBeNull();
+  });
+
+  it("指定したファイルがなければエラーにする", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fontconfigFile: "missing/fonts.conf",
+    });
+
+    await expect(loadPdfConfig()).rejects.toThrow(
+      /fontconfigFile のファイルが見つかりません/,
+    );
+  });
+
+  it("文字列でも null でもなければエラーにする", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fontconfigFile: 1,
+    });
+
+    await expect(loadPdfConfig()).rejects.toThrow(
+      /fontconfigFile は fonts.conf のパスか null/,
+    );
+  });
+});

@@ -61,6 +61,11 @@ export interface PdfConfig {
   colophon?: PdfColophon;
   /** PDF を作ったあとの Type 3・埋め込みなしのフォントの検査。既定は "warn"。 */
   fontCheck: FontCheckMode;
+  /**
+   * Chromium に使わせる fontconfig の設定ファイル（絶対パス。Linux でだけ効く）。
+   * null ならシステムの設定を使う。未指定なら環境変数 FONTCONFIG_FILE、それもなければシステムの設定。
+   */
+  fontconfigFile?: string | null;
 }
 
 /** 設定の値が正しくないとき。黙って既定値に戻すと入稿用の設定が効かなくなるので、止める。 */
@@ -82,6 +87,7 @@ interface PdfConfigOverrides {
   pageNumbers?: boolean;
   colophon?: PdfColophon;
   fontCheck?: FontCheckMode;
+  fontconfigFile?: string | null;
 }
 
 export const DEFAULT_CONFIG: PdfConfig = {
@@ -161,7 +167,15 @@ export async function loadPdfConfig(
 
     let overrides: PdfConfigOverrides;
     try {
-      overrides = normalizeConfigOverrides(raw);
+      overrides = normalizeConfigOverrides(raw, path.dirname(candidate));
+      if (
+        typeof overrides.fontconfigFile === "string" &&
+        !(await fs.pathExists(overrides.fontconfigFile))
+      ) {
+        throw new PdfConfigError(
+          `fontconfigFile のファイルが見つかりません: ${overrides.fontconfigFile}`,
+        );
+      }
     } catch (err) {
       if (err instanceof PdfConfigError) {
         throw new PdfConfigError(`${err.message} (${candidate})`);
@@ -193,6 +207,10 @@ function mergeConfig(
     pageNumbers: overrides.pageNumbers ?? defaults.pageNumbers,
     colophon: overrides.colophon ?? defaults.colophon,
     fontCheck: overrides.fontCheck ?? defaults.fontCheck,
+    fontconfigFile:
+      overrides.fontconfigFile !== undefined
+        ? overrides.fontconfigFile
+        : defaults.fontconfigFile,
   };
 }
 
@@ -369,7 +387,10 @@ function normalizeHeaderFooter(
   return normalized;
 }
 
-function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
+function normalizeConfigOverrides(
+  value: unknown,
+  configDir: string,
+): PdfConfigOverrides {
   if (!isRecord(value)) {
     return {};
   }
@@ -441,6 +462,21 @@ function normalizeConfigOverrides(value: unknown): PdfConfigOverrides {
       );
     }
     overrides.fontCheck = value.fontCheck;
+  }
+
+  if ("fontconfigFile" in value) {
+    const fontconfigFile = value.fontconfigFile;
+    if (fontconfigFile === null) {
+      overrides.fontconfigFile = null;
+    } else if (typeof fontconfigFile === "string" && fontconfigFile.trim()) {
+      // 相対パスのまま FONTCONFIG_FILE に渡すと fontconfig が黙って無視するので、
+      // 設定ファイルの場所を基準に絶対パスにする
+      overrides.fontconfigFile = path.resolve(configDir, fontconfigFile);
+    } else {
+      throw new PdfConfigError(
+        "fontconfigFile は fonts.conf のパスか null で指定してください。",
+      );
+    }
   }
 
   return overrides;
