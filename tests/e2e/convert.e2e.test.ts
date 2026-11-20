@@ -162,7 +162,8 @@ describe("CLI E2E", () => {
       ]);
 
       expect(code).toBe(1);
-      expect(stderr).toContain("フォントにない字が 1 種類");
+      // 環境のフォントによっては、ほかの字（日本語など）も見つかるので、数は確かめない
+      expect(stderr).toContain("フォントにない字が");
       expect(stderr).toContain("U+10FFFD");
       expect(stderr).toContain("PDF を作りませんでした");
       expect(await fs.pathExists(outputPath)).toBe(false);
