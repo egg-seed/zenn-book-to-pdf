@@ -21,9 +21,16 @@ function formatValue(value: string): string {
 export function buildColophon(
   colophon: PdfColophon | undefined,
   bookTitle: string,
+  credits: string[] = [],
 ): string {
+  const creditLines = credits
+    .map((credit) => `<p class="colophon-note">${escapeText(credit)}</p>`)
+    .join("\n");
   if (!colophon) {
-    return "";
+    // 奥付がなくても、素材のクレジット（Twemoji など）は本の最後に入れる
+    return creditLines
+      ? `\n<section class="book-credits">${creditLines}</section>`
+      : "";
   }
 
   const rows = colophon.rows
@@ -49,6 +56,7 @@ export function buildColophon(
     <p class="colophon-title">${escapeText(title.main)}${subtitle}</p>
     <table class="colophon-table">${rows}</table>
     ${note}
+    ${creditLines}
   </div>
     ${copyright}
 </section>`;

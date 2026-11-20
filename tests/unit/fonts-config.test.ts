@@ -320,6 +320,26 @@ describe("glyphCheck config", () => {
   });
 });
 
+describe("emoji config", () => {
+  it("未指定なら text（白黒）", async () => {
+    expect((await loadPdfConfig()).emoji).toBe("text");
+  });
+
+  it("twemoji を読み込み、ほかの値はエラーにする", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      emoji: "twemoji",
+    });
+    expect((await loadPdfConfig()).emoji).toBe("twemoji");
+
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      emoji: "color",
+    });
+    await expect(loadPdfConfig()).rejects.toThrow(
+      /emoji は text \/ twemoji のいずれか/,
+    );
+  });
+});
+
 describe("fontconfigFile config", () => {
   it("未指定なら undefined", async () => {
     expect((await loadPdfConfig()).fontconfigFile).toBeUndefined();

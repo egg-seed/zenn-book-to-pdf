@@ -5,6 +5,13 @@ import fs from "fs-extra";
 import path from "path";
 import type { PdfColophon, PdfFonts, PdfMargin } from "./config-loader.ts";
 import { buildColophon, getColophonStyles } from "./colophon.ts";
+import {
+  openTwemoji,
+  TWEMOJI_CREDIT,
+  twemojiStyles,
+  wrapEmoji,
+  type EmojiMode,
+} from "./emoji.ts";
 import { splitTitle } from "./title.ts";
 
 const require = createRequire(import.meta.url);
@@ -38,6 +45,7 @@ interface PdfConfigLike {
   pageSize?: string;
   pageNumbers?: boolean;
   colophon?: PdfColophon;
+  emoji?: EmojiMode;
 }
 
 /** Puppeteer の PaperFormat と同じ寸法（インチ、幅 x 高さ） */
@@ -155,7 +163,8 @@ export async function buildBookHtml(
 </section>`;
     }),
   );
-  const chaptersHtml = chaptersHtmlArray.join("\n");
+  const emoji = applyTwemoji(chaptersHtmlArray.join("\n"), pdfConfig.emoji);
+  const chaptersHtml = emoji.html;
   const summary = pdfConfig.summary ?? config.summary;
   const colophon = pdfConfig.colophon;
 
@@ -170,6 +179,7 @@ export async function buildBookHtml(
   <style>${getBookStyles(fonts, margin, getPaperSize(pdfConfig.pageSize), pdfConfig.pageNumbers ?? false)}</style>
   ${coverImage ? `<style>${getImageCoverStyles(getPaperSize(pdfConfig.pageSize))}</style>` : ""}
   ${colophon ? `<style>${getColophonStyles(getPaperSize(pdfConfig.pageSize)[1], margin, fonts.headingFamily || "sans-serif")}</style>` : ""}
+  ${emoji.styles ? `<style>${emoji.styles}</style>` : ""}
 </head>
 <body>
   ${coverImage ? buildImageCoverSection(config.title, coverImage) : ""}
@@ -187,10 +197,39 @@ export async function buildBookHtml(
   <main class="content">
     ${chaptersHtml}
   </main>
-  ${buildColophon(colophon, config.title ?? "")}
+  ${buildColophon(colophon, config.title ?? "", emoji.credits)}
   ${buildMermaidScripts(chaptersHtml, fonts)}
 </body>
 </html>`;
+}
+
+/**
+ * emoji が "twemoji" なら、章の本文の絵文字を Twemoji の SVG で描くようにする。
+ * SVG がない絵文字は白黒のまま残し、警告する。
+ */
+function applyTwemoji(
+  chaptersHtml: string,
+  mode: EmojiMode | undefined,
+): { html: string; styles: string; credits: string[] } {
+  if (mode !== "twemoji") {
+    return { html: chaptersHtml, styles: "", credits: [] };
+  }
+  const twemoji = openTwemoji();
+  if (!twemoji.ok) {
+    throw new Error(`emoji が "twemoji" ですが、${twemoji.reason}`);
+  }
+  const result = wrapEmoji(chaptersHtml, twemoji.source);
+  if (result.missing.size > 0) {
+    console.warn(
+      `⚠️  Twemoji にない絵文字は、白黒のまま描きます: ${[...result.missing].join(" ")}`,
+    );
+  }
+  console.log(`  絵文字: Twemoji で ${result.used.size} 種類をカラーにします`);
+  return {
+    html: result.html,
+    styles: twemojiStyles(result.used),
+    credits: result.used.size > 0 ? [TWEMOJI_CREDIT] : [],
+  };
 }
 
 /**

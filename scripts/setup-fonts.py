@@ -16,6 +16,8 @@ Type 3 フォントの入らない PDF を作れる（docs/font-setup.md）。
 取ってくるファイルは、コミットや版を固定し、SHA-256 を確かめる。作るフォントは SOURCE_DATE_EPOCH を
 固定するので、同じ版の fontTools なら毎回同じバイト列になる。
 
+Twemoji（カラーの絵文字の SVG）も fonts/twemoji/ に取り出す。設定 emoji: "twemoji" のときに使う。
+
 使い方: mise run setup-fonts（uv run --script scripts/setup-fonts.py [--force]）
 """
 
@@ -40,9 +42,22 @@ GOOGLE_FONTS_RAW = f"https://raw.githubusercontent.com/google/fonts/{GOOGLE_FONT
 # google/fonts の上のコミットの日時（2026-11-20T19:59:51Z）。作るフォントの日時に使う。
 SOURCE_DATE_EPOCH = "1795723191"
 
+# Twemoji v17.0.3 のタグのコミット。GitHub のアーカイブはバイト列が変わることがあるので、
+# アーカイブではなく、取り出した SVG の一覧（ファイル名と SHA-256）のハッシュを確かめる。
+TWEMOJI_COMMIT = "b6b55fef1e8636b540a6d016a4729ca8cdf2e60b"
+TWEMOJI_URL = f"https://codeload.github.com/jdecked/twemoji/tar.gz/{TWEMOJI_COMMIT}"
+TWEMOJI_SVG_COUNT = 4009
+TWEMOJI_SVG_DIGEST = "acf4b1719e91b046d9fd543d7c177705e54188e38e5600f3b591631152e4761d"
+TWEMOJI_LICENSES = {
+    "LICENSE": "5076b7ec0f98f95aa87a3103bebdcd3852acd88d61fbd99307b8d953024acb67",
+    "LICENSE-GRAPHICS": "8ae9438818c26e4873b91d8c6ad620526c011e27e125677f13031eda903f007c",
+}
+TWEMOJI_MANIFEST_VERSION = 1
+
 ROOT = Path(__file__).resolve().parent.parent
 FONTS_DIR = ROOT / "fonts"
 TTF_DIR = FONTS_DIR / "ttf"
+TWEMOJI_DIR = FONTS_DIR / "twemoji"
 MANIFEST_NAME = "manifest.json"
 # フォントの組を変えたら上げる。src/fontconfig.ts の BUNDLED_MANIFEST_VERSION と同じ値にする。
 # 古い版の fonts/ttf/ は、そろっていないものとして作り直す（変換ツールも使わない）。
@@ -240,6 +255,86 @@ def is_complete(ttf_dir: Path) -> bool:
     return True
 
 
+def svg_digest(entries: list[tuple[str, str]]) -> str:
+    """SVG の一覧（ファイル名と SHA-256）のハッシュ。src/emoji.ts と同じ計算。"""
+    lines = "".join(f"{name}\0{sha}\n" for name, sha in sorted(entries))
+    return hashlib.sha256(lines.encode()).hexdigest()
+
+
+def fetch_unpinned(url: str) -> bytes:
+    print(f"  取得: {url}")
+    with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310（固定の https の URL）
+        return response.read()
+
+
+def build_twemoji(work_dir: Path) -> None:
+    print("Twemoji")
+    archive = fetch_unpinned(TWEMOJI_URL)
+    prefix = f"twemoji-{TWEMOJI_COMMIT}/"
+    svg_dir = work_dir / "svg"
+    svg_dir.mkdir()
+    entries: list[tuple[str, str]] = []
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        for info in tar.getmembers():
+            if not (info.isfile() and info.name.startswith(prefix + "assets/svg/") and info.name.endswith(".svg")):
+                continue
+            name = info.name[len(prefix + "assets/svg/"):]
+            if "/" in name or not all(c in "0123456789abcdef-." for c in name.removesuffix(".svg")):
+                raise SystemExit(f"エラー: 思っていない名前の SVG です: {name}")
+            data = tar.extractfile(info).read()  # type: ignore[union-attr]
+            (svg_dir / name).write_bytes(data)
+            entries.append((name, sha256_of(data)))
+        for license_name, expected in TWEMOJI_LICENSES.items():
+            data = tar.extractfile(prefix + license_name).read()  # type: ignore[union-attr]
+            if sha256_of(data) != expected:
+                raise SystemExit(f"エラー: Twemoji の {license_name} の SHA-256 が一致しません")
+            (work_dir / license_name).write_bytes(data)
+    digest = svg_digest(entries)
+    if len(entries) != TWEMOJI_SVG_COUNT or digest != TWEMOJI_SVG_DIGEST:
+        raise SystemExit(
+            f"エラー: Twemoji の SVG の中身が一致しません（{len(entries)} 個、{digest}）\n"
+            f"  期待: {TWEMOJI_SVG_COUNT} 個、{TWEMOJI_SVG_DIGEST}"
+        )
+    print(f"  取り出し: svg/（{len(entries)} 個）")
+    manifest = {
+        "version": TWEMOJI_MANIFEST_VERSION,
+        "commit": TWEMOJI_COMMIT,
+        "svgCount": len(entries),
+        "svgDigest": digest,
+    }
+    (work_dir / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def is_twemoji_complete(twemoji_dir: Path) -> bool:
+    manifest_path = twemoji_dir / MANIFEST_NAME
+    if not manifest_path.is_file():
+        return False
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("version") != TWEMOJI_MANIFEST_VERSION or manifest.get("commit") != TWEMOJI_COMMIT:
+        return False
+    svg_dir = twemoji_dir / "svg"
+    if not svg_dir.is_dir():
+        return False
+    entries = [(f.name, sha256_of(f.read_bytes())) for f in svg_dir.iterdir() if f.is_file()]
+    return len(entries) == TWEMOJI_SVG_COUNT and svg_digest(entries) == TWEMOJI_SVG_DIGEST
+
+
+def build_into(target: Path, builder, prefix: str) -> None:  # type: ignore[no-untyped-def]
+    """一時フォルダで全部作ってから target と入れ替える（途中で失敗しても、半端なフォルダを残さない）。"""
+    FONTS_DIR.mkdir(exist_ok=True)
+    work_dir = Path(tempfile.mkdtemp(prefix=prefix, dir=FONTS_DIR))
+    try:
+        builder(work_dir)
+        if target.exists():
+            shutil.rmtree(target)
+        work_dir.chmod(0o755)  # mkdtemp は 0700 で作るので、普通のフォルダと同じにする
+        work_dir.rename(target)
+    finally:
+        if work_dir.exists():
+            shutil.rmtree(work_dir)
+    print(f"完了: {target}")
+
+
 def build(work_dir: Path) -> None:
     fonts: list[dict[str, str]] = []
     licenses: list[dict[str, str]] = []
@@ -292,30 +387,23 @@ def build(work_dir: Path) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="PDF 用の TrueType フォントを fonts/ttf/ に用意する")
+    parser = argparse.ArgumentParser(
+        description="PDF 用の TrueType フォントを fonts/ttf/ に、Twemoji の SVG を fonts/twemoji/ に用意する"
+    )
     parser.add_argument("--force", action="store_true", help="そろっていても作り直す")
     args = parser.parse_args()
 
     if not args.force and is_complete(TTF_DIR):
         print(f"フォントはそろっています: {TTF_DIR}（作り直すときは --force）")
-        return 0
+    else:
+        # 作るフォントの日時を固定し、毎回同じバイト列にする（fontTools が使う）
+        os.environ["SOURCE_DATE_EPOCH"] = SOURCE_DATE_EPOCH
+        build_into(TTF_DIR, build, "ttf-work-")
 
-    # 作るフォントの日時を固定し、毎回同じバイト列にする（fontTools が使う）
-    os.environ["SOURCE_DATE_EPOCH"] = SOURCE_DATE_EPOCH
-    FONTS_DIR.mkdir(exist_ok=True)
-    # 一時フォルダで全部作ってから入れ替える（途中で失敗しても、半端な fonts/ttf/ を残さない）
-    work_dir = Path(tempfile.mkdtemp(prefix="ttf-work-", dir=FONTS_DIR))
-    try:
-        build(work_dir)
-        if TTF_DIR.exists():
-            shutil.rmtree(TTF_DIR)
-        work_dir.chmod(0o755)  # mkdtemp は 0700 で作るので、普通のフォルダと同じにする
-        work_dir.rename(TTF_DIR)
-    finally:
-        if work_dir.exists():
-            shutil.rmtree(work_dir)
-
-    print(f"完了: {TTF_DIR}")
+    if not args.force and is_twemoji_complete(TWEMOJI_DIR):
+        print(f"Twemoji はそろっています: {TWEMOJI_DIR}（作り直すときは --force）")
+    else:
+        build_into(TWEMOJI_DIR, build_twemoji, "twemoji-work-")
     return 0
 
 

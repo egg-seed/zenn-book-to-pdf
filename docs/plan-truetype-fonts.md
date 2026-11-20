@@ -233,6 +233,7 @@ fontconfig の方法では、用意したフォントのどれにもない字は
 - Type 3 を出さない方法は fontconfig を主にする。`@font-face` はあとで考える（理由は「`@font-face` の確認」の結論）。
 - 豆腐は、PR 2b の豆腐の検出（`glyphCheck`、既定は `"warn"`）で見つける。
 - 絵文字は白黒（Noto Emoji）にする。カラーにしたいときは、絵文字を SVG の画像に置き換える方式を別の課題として考える。
+  - 2026-11-21：設定 `"emoji": "twemoji"` で、カラーにできるようにした（既定は白黒のまま）。Fable と Codex の意見を聞き、Fable の案（絵文字の字を透明にして残し、Twemoji の SVG を背景として重ねる）にした。Codex の案（`<img>` に置き換える）は、コピーできず、組みと字の検査が変わるため採らなかった。COLRv0 などのカラーのフォントは、Skia が Type 3 にする見込みなので試していない。
 - 手元の `~/.local/share/zenn-book-to-pdf-fonts/` は、次の順で片付ける。
   1. 消す前に、フォントと `fonts.conf` のハッシュを記録し、別の場所に控えを取る。
   2. PR 2b の `setup-fonts` で作り直し、作った PDF を今の PDF と比べる（`pdffonts`、ページ数、`pdftotext` の差分。バイト単位の一致は求めない）。

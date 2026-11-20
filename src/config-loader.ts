@@ -3,6 +3,7 @@ import path from "path";
 import type { PaperFormat } from "puppeteer";
 import { isFontCheckMode, type FontCheckMode } from "./font-check.ts";
 import { isGlyphCheckMode, type GlyphCheckMode } from "./glyph-check.ts";
+import { isEmojiMode, type EmojiMode } from "./emoji.ts";
 
 export type PdfWaitUntil =
   | "load"
@@ -70,6 +71,8 @@ export interface PdfConfig {
   fontCheck: FontCheckMode;
   /** PDF を作る前の、フォントにない字（豆腐）の検査。既定は "warn"。 */
   glyphCheck: GlyphCheckMode;
+  /** 絵文字の描き方。"text"（既定。白黒の Noto Emoji）か "twemoji"（カラーの SVG を重ねる）。 */
+  emoji: EmojiMode;
   /**
    * Chromium に使わせる fontconfig の設定ファイル（絶対パス。Linux でだけ効く）。
    * null ならシステムの設定を使う。未指定なら環境変数 FONTCONFIG_FILE、それもなければシステムの設定。
@@ -97,6 +100,7 @@ interface PdfConfigOverrides {
   colophon?: PdfColophon;
   fontCheck?: FontCheckMode;
   glyphCheck?: GlyphCheckMode;
+  emoji?: EmojiMode;
   fontconfigFile?: string | null;
 }
 
@@ -141,6 +145,7 @@ export const DEFAULT_CONFIG: PdfConfig = {
   },
   fontCheck: "warn",
   glyphCheck: "warn",
+  emoji: "text",
 };
 
 export async function loadPdfConfig(
@@ -221,6 +226,7 @@ function mergeConfig(
     colophon: overrides.colophon ?? defaults.colophon,
     fontCheck: overrides.fontCheck ?? defaults.fontCheck,
     glyphCheck: overrides.glyphCheck ?? defaults.glyphCheck,
+    emoji: overrides.emoji ?? defaults.emoji,
     fontconfigFile:
       overrides.fontconfigFile !== undefined
         ? overrides.fontconfigFile
@@ -498,6 +504,15 @@ function normalizeConfigOverrides(
       );
     }
     overrides.glyphCheck = value.glyphCheck;
+  }
+
+  if ("emoji" in value) {
+    if (!isEmojiMode(value.emoji)) {
+      throw new PdfConfigError(
+        "emoji は text / twemoji のいずれかを指定してください。",
+      );
+    }
+    overrides.emoji = value.emoji;
   }
 
   if ("fontconfigFile" in value) {
