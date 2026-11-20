@@ -1,4 +1,38 @@
-# フォントセットアップ（Noto Serif CJK JP / Noto Sans CJK JP）
+# フォントセットアップ
+
+## 入稿用の PDF では Type 3 フォントに注意する
+
+PDF を作る Chromium（Skia）は、次のフォントを **Type 3 フォント**として PDF に入れます。
+
+- OTF/CFF 形式のフォント（`fonts-noto-cjk` の Noto Serif/Sans/Mono CJK JP など）
+- カラー絵文字（Noto Color Emoji）
+
+Type 3 フォントは、入稿先によっては受け付けられません（技術書典では「T3_Font」として非承認になりました）。TrueType（glyf）形式で、太さを固定した（可変でない）フォントは、CID TrueType として埋め込まれます。
+
+変換ツールは PDF を作ったあとにフォントを調べ、Type 3 のフォントがあれば警告します（README の「フォントの検査（Type 3 フォント）」）。入稿用の PDF は `--font-check error` で作ってください。
+
+### 確かめ方
+
+```bash
+pdffonts output.pdf | grep -c "Type 3"   # 0 なら Type 3 はない
+```
+
+Acrobat Reader では、「ファイル → プロパティ → フォント」で、各フォントが「埋め込みサブセット」になっていて、種類が「Type 3」でないことを確かめます。
+
+### いまの対策（手作業）
+
+TrueType のフォントだけを Chromium に見せると、Type 3 は入りません。今は手作業で次のように準備します（この手順を変換ツールに組み込む予定です）。
+
+1. Google Fonts の可変 TTF（Noto Sans JP、Noto Serif JP、Noto Emoji）から、fontTools の `instancer` で Regular（400）と Bold（700）の固定版を作ります。
+2. そのフォントと、TrueType の等幅フォント（Liberation Mono など）だけを読み込む `fonts.conf` を作ります。
+3. `FONTCONFIG_FILE` に `fonts.conf` の絶対パスを指定して変換します（相対パスで指定すると、何も言わずにシステムの設定に戻ります）。
+4. 設定の `fonts` は、`'Noto Serif JP'` と `'Noto Sans JP'` を先頭にし、`'Noto Emoji'` を続けます。
+
+この方法では、絵文字は白黒になります。
+
+## 以下は Noto CJK を使う場合の手順です
+
+ここから下の手順で入る Noto Serif/Sans CJK JP は、Type 3 フォントになります。画面で読むための PDF には使えますが、入稿用の PDF には上の対策を使ってください。
 
 このプロジェクトでは、技術書向けの推奨フォントとして以下を使います。
 

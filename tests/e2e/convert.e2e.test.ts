@@ -96,6 +96,26 @@ describe("CLI E2E", () => {
     const pdfBuffer = await fs.readFile(outputPath);
     expect(pdfBuffer.toString("latin1").startsWith("%PDF-")).toBe(true);
     await expect(countPdfPages(pdfBuffer)).resolves.toBeGreaterThan(0);
+
+    // PDF を作ったあとにフォントを検査し、要約の1行を出す（結果は環境のフォントによる）
+    expect(`${stdout}\n${stderr}`).toContain("🔤 フォント:");
+  }, 120000);
+
+  it("--font-check の値が正しくなければ、PDF を作らずに終了コード 1 で終わる", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zenn-pdf-e2e-"));
+    tempDirs.push(tmpDir);
+
+    const outputPath = path.join(tmpDir, "output.pdf");
+    const { code, stderr } = await runCli([
+      fixtureBookPath,
+      outputPath,
+      "--font-check",
+      "strict",
+    ]);
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("--font-check には warn / error / off");
+    expect(await fs.pathExists(outputPath)).toBe(false);
   }, 120000);
 
   it("cover.png がある場合は画像表紙を追加した PDF を生成できる", async () => {
