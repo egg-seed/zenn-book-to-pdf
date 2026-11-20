@@ -4,6 +4,7 @@ import fs from "fs-extra";
 import os from "os";
 import path from "path";
 import {
+  BUNDLED_MANIFEST_VERSION,
   checkFontFamilies,
   findBundledFontconfig,
   resolveFontconfig,
@@ -150,7 +151,7 @@ describe("findBundledFontconfig", () => {
       });
     }
     await fs.writeJson(path.join(ttfDir, "manifest.json"), {
-      version: 1,
+      version: BUNDLED_MANIFEST_VERSION,
       fonts,
       licenses: [],
     });
@@ -191,6 +192,21 @@ describe("findBundledFontconfig", () => {
       status: "incomplete",
       reason: "A.ttf の中身が違う",
     });
+  });
+
+  it("manifest の版が古ければ incomplete（setup-fonts で作り直す）", async () => {
+    await writeTtf({ "A.ttf": "a" });
+    const manifestPath = path.join(fontsDir, "ttf", "manifest.json");
+    const manifest = (await fs.readJson(manifestPath)) as Record<
+      string,
+      unknown
+    >;
+    await fs.writeJson(manifestPath, { ...manifest, version: 1 });
+
+    const result = findBundledFontconfig(fontsDir);
+
+    expect(result.status).toBe("incomplete");
+    expect(result.status === "incomplete" && result.reason).toContain("古い版");
   });
 
   it("fonts.conf がなければ incomplete", async () => {

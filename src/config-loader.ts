@@ -25,6 +25,12 @@ export interface PdfHeaderFooter {
 export interface PdfFonts {
   bodyFamily: string;
   headingFamily: string;
+  /**
+   * コード（コードブロック、インラインのコード、コードのファイル名）の font-family。
+   * 既定は UDEV Gothic（日本語1字＝英数字2字で、罫線は英数字と同じ幅）。
+   * 未指定（DEFAULT_CONFIG を通さないとき）なら zenn-content-css の指定のまま。
+   */
+  codeFamily?: string;
 }
 
 export interface PdfRenderOptions {
@@ -125,6 +131,8 @@ export const DEFAULT_CONFIG: PdfConfig = {
       "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
     headingFamily:
       "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+    codeFamily:
+      "'UDEV Gothic', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace, 'Noto Emoji'",
   },
   render: {
     waitUntil: "domcontentloaded",
@@ -238,6 +246,7 @@ function mergeFontsConfig(
   const fontsRecord = overrideFonts as Record<string, unknown>;
   const bodyFamilyValue = fontsRecord.bodyFamily;
   const headingFamilyValue = fontsRecord.headingFamily;
+  const codeFamilyValue = fontsRecord.codeFamily;
 
   const bodyFamily =
     typeof bodyFamilyValue === "string" && bodyFamilyValue.trim() !== ""
@@ -266,9 +275,21 @@ function mergeFontsConfig(
     );
   }
 
+  let codeFamily = defaultFonts.codeFamily;
+  if (codeFamilyValue != null) {
+    if (typeof codeFamilyValue === "string" && codeFamilyValue.trim() !== "") {
+      codeFamily = codeFamilyValue;
+    } else {
+      console.warn(
+        "⚠️  fonts.codeFamily は空でない文字列で指定してください。デフォルト値を使用します。",
+      );
+    }
+  }
+
   return {
     bodyFamily,
     headingFamily,
+    ...(codeFamily !== undefined ? { codeFamily } : {}),
   };
 }
 

@@ -137,7 +137,8 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
   },
   "fonts": {
     "bodyFamily": "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
-    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif"
+    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+    "codeFamily": "'UDEV Gothic', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace, 'Noto Emoji'"
   }
 }
 ```
@@ -148,7 +149,9 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `margin`: PDF の余白です。`top` / `bottom` / `left` / `right` を `"14mm"` のような文字列で指定します。デフォルトは `top: 14mm`、`bottom: 16mm`、`left: 14mm`、`right: 14mm` です。
 - `header`: 各ページのヘッダー設定です。`enabled` を `true` にすると `template` に指定した HTML を表示します。デフォルトでは無効です。
 - `footer`: 各ページのフッター設定です。`enabled` を `true` にすると `template` に指定した HTML を表示します。デフォルトでは無効です。ページ番号を表示したい場合は、`template` 内で `<span class="pageNumber"></span>` と `<span class="totalPages"></span>` を使えます。
-- `fonts`: 本文と見出しのフォントファミリーです。`bodyFamily` と `headingFamily` に CSS の `font-family` 文字列を指定します。フォント設定の注意は [docs/font-setup.md](docs/font-setup.md) を参照してください。
+- `fonts`: 本文、見出し、コードのフォントファミリーです。`bodyFamily`、`headingFamily`、`codeFamily` に CSS の `font-family` 文字列を指定します。フォント設定の注意は [docs/font-setup.md](docs/font-setup.md) を参照してください。
+  - `codeFamily` はコード（コードブロック、インラインのコード、コードのファイル名）のフォントです。既定は UDEV Gothic で、日本語1文字が英数字のちょうど2文字分、罫線（`─│├`）は英数字と同じ幅なので、日本語のコメントやディレクトリの構成の図の桁がそろいます。
+  - 以前の版（英数字が Liberation Mono、日本語が Noto Sans JP）と同じ組みにしたいときは、`"codeFamily": "'Liberation Mono', 'Noto Sans JP', 'Noto Emoji', monospace"` を指定します。英数字の幅が広いので、ページ数が増えます（ある本では 837 → 863 ページ）。
 - `render`: PDF 化前の待機戦略と timeout です。詳細は次の通りです。
 - 書名の副題：`config.yaml` の `title` が「書名: 副題」（半角コロンと空白）または「書名：副題」の形なら、2ページ目のタイトルページと奥付では、副題を別の行に小さく出します。PDF の文書情報の書名は、`title` をそのまま使います。
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。

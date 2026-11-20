@@ -138,6 +138,12 @@ interface ManifestEntry {
 }
 
 /**
+ * このツールが前提にする fonts/ttf/manifest.json の版（scripts/setup-fonts.py の MANIFEST_VERSION と同じ）。
+ * フォントの組を変えたら両方を上げる。古い版の fonts/ttf/ のまま、足りないフォントで PDF を作らないため。
+ */
+export const BUNDLED_MANIFEST_VERSION = 2;
+
+/**
  * mise run setup-fonts で用意したフォントがそろっているかを、fonts/ttf/manifest.json で確かめる。
  * フォルダがあるだけでは使わない（途中で失敗した半端な状態で、字が抜けた PDF を作らないため）。
  */
@@ -158,9 +164,16 @@ export function findBundledFontconfig(
   let entries: ManifestEntry[];
   try {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+      version?: unknown;
       fonts?: ManifestEntry[];
       licenses?: ManifestEntry[];
     };
+    if (manifest.version !== BUNDLED_MANIFEST_VERSION) {
+      return {
+        status: "incomplete",
+        reason: `古い版のフォント（manifest の version が ${String(manifest.version)}。必要なのは ${BUNDLED_MANIFEST_VERSION}）`,
+      };
+    }
     entries = [...(manifest.fonts ?? []), ...(manifest.licenses ?? [])];
   } catch {
     return { status: "incomplete", reason: "manifest.json を読めない" };

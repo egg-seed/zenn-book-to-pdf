@@ -28,7 +28,8 @@ Type 3 フォントは、入稿先によっては受け付けられません（�
 | Noto Serif JP（Regular・Bold）   | 本文                                     | google/fonts の可変 TTF から、fontTools で太さを固定して作る |
 | Noto Sans JP（Regular・Bold）    | 見出し、日本語の予備                     | 同上                                                         |
 | Noto Emoji（Regular）            | 絵文字（白黒）                           | 同上                                                         |
-| Liberation Mono（Regular・Bold） | コード                                   | Liberation Fonts 2.1.5                                       |
+| UDEV Gothic（Regular・Bold）     | コード                                   | UDEV Gothic v2.2.0（通常版）                                 |
+| Liberation Mono（Regular・Bold） | コードの予備（以前の版の組み）           | Liberation Fonts 2.1.5                                       |
 | DejaVu Sans                      | ほかのフォントにない記号の予備（⋮ など） | DejaVu Fonts 2.37                                            |
 
 - 取ってくるファイルは、コミットや版を固定し、SHA-256 を確かめます。
@@ -36,6 +37,7 @@ Type 3 フォントは、入稿先によっては受け付けられません（�
 - 一時フォルダで全部作ってから `fonts/ttf/` と入れ替え、最後に `manifest.json`（ファイル名と SHA-256 の一覧）を書きます。
 - 同じ版の fontTools なら、毎回同じバイト列のフォントになります。
 - そろっていれば何もしません。作り直すときは `uv run --script scripts/setup-fonts.py --force` を実行します。
+- 用意するフォントの組を変えたときは、`manifest.json` の版（`version`）を上げます。古い版の `fonts/ttf/` は、`mise run setup-fonts` が自動で作り直します。作り直すまでは、変換ツールは「そろっていない」と警告し、`fonts/fonts.conf` を使いません。
 - 各フォントのライセンスのファイルも `fonts/ttf/` に置きます（[fonts/README.md](../fonts/README.md)）。
 
 ## 変換ツールがフォントを選ぶ順番
@@ -85,12 +87,22 @@ Acrobat Reader では、「ファイル → プロパティ → フォント」�
 {
   "fonts": {
     "bodyFamily": "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
-    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif"
+    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+    "codeFamily": "'UDEV Gothic', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace, 'Noto Emoji'"
   }
 }
 ```
 
-ヒラギノ（macOS）と游明朝・メイリオ（Windows）は、Noto JP を入れていない環境の予備です。変換の前に、本文と見出しの先頭のフォントが TrueType として見つかるかを `fc-match` で確かめ、見つからないとき、または TrueType でない（CFF など。Type 3 になる）ときは警告します。
+ヒラギノ（macOS）と游明朝・メイリオ（Windows）は、Noto JP を入れていない環境の予備です。変換の前に、本文、見出し、コードの先頭のフォントが TrueType として見つかるかを `fc-match` で確かめ、見つからないとき、または TrueType でない（CFF など。Type 3 になる）ときは警告します。
+
+## コードのフォント
+
+コードは UDEV Gothic（通常版）で描きます。英数字は JetBrains Mono、日本語は BIZ UDゴシックをもとにした、日本語1文字が英数字のちょうど2文字分のフォントです。
+
+- 日本語のコメントのあるコードや、ディレクトリの構成の図（`├── app/  # 日本語のコメント`）の桁がそろいます。
+- 罫線（`─│├└`）は英数字と同じ幅です。HackGen や BIZ UDゴシックは罫線が日本語と同じ幅なので、図の横線が間延びし、桁がずれます。
+- 35（英数字：日本語＝3:5）、LG（合字あり）、JPDOC（一部の記号が日本語と同じ幅）は使いません。
+- 以前の版の組み（英数字が Liberation Mono）に戻す方法は、README の `codeFamily` を見てください。
 
 ## 注意
 
