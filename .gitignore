@@ -9,5 +9,7 @@ coverage/
 *.pdf
 pdf.config*.json
 !pdf.config.example.json
+# e2e テストの fixture の設定は Git で管理する
+!tests/fixtures/**/pdf.config.json
 .serena/
 __pycache__/
