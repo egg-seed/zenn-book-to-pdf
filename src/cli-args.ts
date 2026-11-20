@@ -1,11 +1,12 @@
 import path from "path";
 import { isFontCheckMode, type FontCheckMode } from "./font-check.ts";
+import { isGlyphCheckMode, type GlyphCheckMode } from "./glyph-check.ts";
 
 export const CLI_USAGE_LINES = [
-  "使い方: node src/index.ts <bookディレクトリ> [出力ファイル.pdf] [--config <コンフィグファイル>] [--font-check warn|error|off]",
+  "使い方: node src/index.ts <bookディレクトリ> [出力ファイル.pdf] [--config <コンフィグファイル>] [--font-check warn|error|off] [--glyph-check warn|error|off]",
   "例: node src/index.ts ../zenn-tech-articles/books/my-book output.pdf",
   "例: node src/index.ts ../zenn-tech-articles/books/my-book output.pdf --config pdf.config.json",
-  "例: node src/index.ts ../zenn-tech-articles/books/my-book output.pdf --font-check error",
+  "例: node src/index.ts ../zenn-tech-articles/books/my-book output.pdf --font-check error --glyph-check error",
 ] as const;
 
 export class CliUsageError extends Error {
@@ -21,6 +22,8 @@ export interface ParsedCliArgs {
   configPath: string | null;
   /** --font-check の値。指定がなければ null（設定ファイルの fontCheck を使う）。 */
   fontCheck: FontCheckMode | null;
+  /** --glyph-check の値。指定がなければ null（設定ファイルの glyphCheck を使う）。 */
+  glyphCheck: GlyphCheckMode | null;
 }
 
 export function parseCliArgs(
@@ -57,8 +60,25 @@ export function parseCliArgs(
     fontCheck = fontCheckValue;
   }
 
+  const glyphCheckFlagIndex = args.indexOf("--glyph-check");
+  let glyphCheck: GlyphCheckMode | null = null;
+
+  if (glyphCheckFlagIndex !== -1) {
+    const glyphCheckValue = args[glyphCheckFlagIndex + 1];
+    if (!isGlyphCheckMode(glyphCheckValue)) {
+      throw new CliUsageError(
+        "--glyph-check には warn / error / off のいずれかを指定してください。",
+      );
+    }
+    glyphCheck = glyphCheckValue;
+  }
+
   const flagArgIndexes = new Set<number>();
-  for (const index of [configFlagIndex, fontCheckFlagIndex]) {
+  for (const index of [
+    configFlagIndex,
+    fontCheckFlagIndex,
+    glyphCheckFlagIndex,
+  ]) {
     if (index !== -1) {
       flagArgIndexes.add(index);
       flagArgIndexes.add(index + 1);
@@ -79,6 +99,7 @@ export function parseCliArgs(
       : path.join(cwd, "output.pdf"),
     configPath,
     fontCheck,
+    glyphCheck,
   };
 }
 

@@ -127,11 +127,13 @@ PDF を作った直後に PDF の中を調べ、問題があれば知らせる�
   - macOS と Windows の予備は残す（Noto を入れていない環境で、見た目が悪くならないように）。
   - コード用の CSS に残っているカラー絵文字の指定を外す。
 - 豆腐（字の抜け）の検出：`src/glyph-check.ts`（新規）
-  - `setup-fonts` で、manifest と一緒に、`fonts/ttf/` のフォント（等幅を含む）が持つ文字の一覧（`fonts/ttf/coverage.json`：コードポイントの範囲の配列）を書き出す。変換ツールは Python を呼ばずに、この一覧だけを読む。
+  - ~~`setup-fonts` で `fonts/ttf/coverage.json`（字の一覧）を書き出す~~ → 実装では、Chromium と同じ fontconfig の設定（環境変数）で `fc-list --format=%{charset}` を実行し、見えるフォントの字の一覧を取る。`fonts/ttf/` の 8 ファイルで、fontTools の cmap と同じ一覧になることを確かめた（違いは制御文字の U+0000 と U+000D だけ）。`coverage.json` が古くなる心配がなく、`fontconfigFile` やシステムの設定でも同じ方法で調べられる。
   - 変換する前に、組み立てた HTML のテキスト（本文、目次、奥付、設定に書いた文字、Mermaid のラベル）を1字ずつ調べ、一覧にない字を集める。結合文字（Mn）、書式文字（Cf。ZWJ を含む）、異体字セレクタ（U+FE0E、U+FE0F）は対象外にする。
   - 足りない字は、字、文字コード、Unicode の名前、章の名前、出てくる回数を、字ごとにまとめて出す。例：`⚠️  フォントにない字が 4 種類あります（豆腐になります）：U+D55C 한（第3章、1回）…`
   - 設定 `glyphCheck`：`"warn"`（既定）/ `"error"` / `"off"`。`fontCheck` と同じ扱いにする（`"error"` のときは変換を始めずに終了コード 1）。
-  - fontconfig の設定（`fonts/fonts.conf` または `fontconfigFile`）を使わないときは、使えるフォントが決まらないので、検出を行わず、その旨を1行出す。`fontconfigFile` で自前の設定を使うときは、その設定で見えるフォントの一覧を `fc-list` から作るか、検出を行わないかを実装のときに決める。
+  - Linux 以外では検出を行わず、その旨を1行出す。Linux では、どの fontconfig の設定（`fonts/fonts.conf`、`fontconfigFile`、システム）でも `fc-list` で調べる。`fc-list` を使えないときは、`warn` では警告し、`error` では止める。
+  - Unicode の名前は、Node.js に一覧がないので出さない（文字コードと字を出す）。
+  - CLI の `--glyph-check` も足す（`--font-check` と同じ）。
   - テスト：一覧にある字・ない字・対象外の字（ZWJ、U+FE0F、結合文字）の判定、章の名前と回数の集計、`"error"` のときの終了コード。
   - 豆腐が見つかったときの対処は `docs/font-setup.md` に書く：まず原稿の字を直す（簡体字を日本の字にするなど）。どうしても必要な字なら、その字を含む TrueType のフォントを `setup-fonts` で足し、`fonts.conf` の予備に加える（足したあとも PR 1 の検出で Type 3 がないことを確かめる）。それもできないものは画像にする。
 - `src/index.ts` の `warnIfNotoFontsUnavailable()`
@@ -226,7 +228,7 @@ fontconfig の方法では、用意したフォントのどれにもない字は
 - 手元の `~/.local/share/zenn-book-to-pdf-fonts/` は、次の順で片付ける。
   1. 消す前に、フォントと `fonts.conf` のハッシュを記録し、別の場所に控えを取る。
   2. PR 2b の `setup-fonts` で作り直し、作った PDF を今の PDF と比べる（`pdffonts`、ページ数、`pdftotext` の差分。バイト単位の一致は求めない）。
-  3. 技術書典の再提出が承認され、2. が確かめられたら消す。`~/.cache/zenn-book-to-pdf-fontconfig` も一緒に消す。
+  3. 技術書典の再提出が承認され、2. が確かめられたら消す（2026-11-21 に消した）。`~/.cache/zenn-book-to-pdf-fontconfig` も一緒に消す。
   4. zenn-tech-articles 側のメモ（`FONTCONFIG_FILE` でビルドする手順）も同時に直す。
 
 ## 元に戻す方法

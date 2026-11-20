@@ -65,6 +65,12 @@ macOS と Windows の Chromium は fontconfig を使わないので、この仕�
 mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --font-check error
 ```
 
+字の検査は、PDF を作る前に、フォントにない字（豆腐になる字）を探します（README の「字の検査（豆腐）」）。入稿用の PDF は `--glyph-check error` も付けて作ってください。
+
+```bash
+mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --font-check error --glyph-check error
+```
+
 自分で確かめるときは次のとおりです。
 
 ```bash
@@ -89,5 +95,15 @@ Acrobat Reader では、「ファイル → プロパティ → フォント」�
 ## 注意
 
 - **絵文字は白黒になります。** カラー絵文字（Noto Color Emoji）は Type 3 になるため、白黒の Noto Emoji を使います。
-- **用意したフォントにない字は、豆腐（□）になります。** ハングルや、簡体字だけの字などです。システムのフォントを読まないので、Type 3 にはなりませんが、字が抜けます。原稿の字を直すか、その字を含む TrueType のフォントを `fonts/fonts.conf` に足してください。
+- **用意したフォントにない字は、豆腐（□）になります。** ハングルや、簡体字だけの字などです。システムのフォントを読まないので、Type 3 にはなりませんが、字が抜けます。字の検査で見つかります（次の「豆腐（フォントにない字）」）。
 - `fonts-noto-cjk`（Noto Serif/Sans CJK JP）は Type 3 になるので、入稿用の PDF には使わないでください。画面で読むための PDF には使えます。
+
+## 豆腐（フォントにない字）
+
+字の検査で「フォントにない字」が出たときは、次の順で直します。
+
+1. **原稿の字を直す。** 簡体字（们 など）を日本の字にする、記号を似た字に変えるなど。たいていはこれで済みます。
+2. **フォントを足す。** どうしても必要な字なら、その字を含む TrueType（glyf）のフォントを `scripts/setup-fonts.py` で `fonts/ttf/` に用意し、`fonts/fonts.conf` の予備（`append_last`）に足します。CFF（OTF）のフォントは Type 3 になるので使えません。足したあとは、フォントの検査で Type 3 がないことを確かめてください。
+3. **画像にする。** 1 も 2 もできない字は、その部分を画像にします。
+
+字の検査は、fontconfig で見えるフォントの字の一覧（`fc-list`）と、本の字を比べています。`fonts/fonts.conf` のように見えるフォントを決めているときは、「どのフォントにもない字」が、そのまま「豆腐になる字」です。

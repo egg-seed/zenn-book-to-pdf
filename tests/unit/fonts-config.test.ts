@@ -246,6 +246,34 @@ describe("fontCheck config", () => {
   });
 });
 
+describe("glyphCheck config", () => {
+  it("未指定なら warn", async () => {
+    expect((await loadPdfConfig()).glyphCheck).toBe("warn");
+  });
+
+  it("error / off を読み込む", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      glyphCheck: "error",
+    });
+    expect((await loadPdfConfig()).glyphCheck).toBe("error");
+
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      glyphCheck: "off",
+    });
+    expect((await loadPdfConfig()).glyphCheck).toBe("off");
+  });
+
+  it("warn / error / off 以外の値はエラーにする", async () => {
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      glyphCheck: true,
+    });
+
+    await expect(loadPdfConfig()).rejects.toThrow(
+      /glyphCheck は warn \/ error \/ off のいずれか/,
+    );
+  });
+});
+
 describe("fontconfigFile config", () => {
   it("未指定なら undefined", async () => {
     expect((await loadPdfConfig()).fontconfigFile).toBeUndefined();
