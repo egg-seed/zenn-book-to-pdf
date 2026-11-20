@@ -157,6 +157,11 @@ mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --config pdf.
 - `summary`: 2ページ目のタイトルページに出す概要です。指定すると `config.yaml` の `summary` の代わりに使います。空文字 `""` にすると概要を出しません。`**太字**` の書き方で、一部を太字にできます（それ以外の Markdown は使えません）。「・」で始まる行は箇条書きとして扱い、折り返した2行目以降を字下げします。Zenn 用の告知（無料範囲など）を PDF に載せたくない場合に使います。
 - `pageNumbers`: `true` にすると、各ページの下中央にページ番号を入れます。表紙画像のページには入れません。`footer` の設定と違い、表紙だけ番号を消せます。既定は `false` です。
 - `fontCheck`: PDF を作ったあとのフォントの検査です。`warn`（既定。問題があれば警告する）/ `error`（問題があれば終了コード 1 で止まる）/ `off`（検査しない）のいずれかを指定します。ほかの値はエラーになります。詳しくは「フォントの検査（Type 3 フォント）」を見てください。
+- `emoji`: 絵文字の描き方です。`text`（既定。白黒の Noto Emoji）か `twemoji`（カラー）を指定します。ほかの値はエラーになります。
+  - `twemoji` では、絵文字の字を透明にして残し、その上に [Twemoji](https://github.com/jdecked/twemoji) の SVG を重ねます。カラー絵文字のフォント（Type 3 になる）は使いません。PDF から文字としてコピーでき、字の検査もそのまま働きます。字の幅は白黒のときと同じです。
+  - Twemoji の SVG は `mise run setup-fonts` で `fonts/twemoji/` に用意します。ないときはエラーで止まります。
+  - Twemoji の絵は CC BY 4.0 なので、使った絵文字があれば、奥付（なければ本の最後）にクレジットを自動で入れます。
+  - U+FE0F の付かない記号（▶ ⚠ © など）と、U+FE0E の付いた字は、文字のまま描きます。Mermaid の図の中の絵文字も変えません。
 - `glyphCheck`: PDF を作る前の、フォントにない字（豆腐）の検査です。`warn`（既定）/ `error`（PDF を作らずに終了コード 1 で止まる）/ `off`（検査しない）のいずれかを指定します。ほかの値はエラーになります。詳しくは「字の検査（豆腐）」を見てください。
 - `fontconfigFile`: Chromium に使わせる fontconfig の設定ファイル（`fonts.conf`）のパスです。TrueType のフォントだけを見せる `fonts.conf` を指定すると、Type 3 フォントの入らない PDF を作れます（[docs/font-setup.md](docs/font-setup.md)）。相対パスは、その設定ファイルの場所を基準にします。ファイルがなければエラーになります。指定すると、環境変数 `FONTCONFIG_FILE` や、`mise run setup-fonts` で用意した `fonts/fonts.conf` より優先します。`null` にすると、環境変数 `FONTCONFIG_FILE` も `fonts/fonts.conf` も使わず、システムの設定を使います。指定しなければ、`fonts/ttf/` のフォントがそろっているときに `fonts/fonts.conf` を自動で使います。Linux でだけ効きます（macOS と Windows の Chromium は fontconfig を使わないため）。使うときは `🔤 fontconfig: … を使います` と1行出します。
 - `colophon`: 最後のページの下に置く奥付です。`title`（省略すると `config.yaml` の書名）、`rows`（`label` と `value` の組の配列）、`note`（任意の一文。情報がいつ時点のものかなど）、`copyright`（罫線の下に右寄せで置く著作権の表示）を書けます。`value` が URL だけならリンクにします。奥付のページにはページ番号を入れません。
