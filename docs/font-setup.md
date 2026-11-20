@@ -1,6 +1,16 @@
 # フォントセットアップ
 
-## 入稿用の PDF では Type 3 フォントに注意する
+## まとめ
+
+Linux（WSL を含む）では、最初に1回だけ次を実行してください。
+
+```bash
+mise run setup-fonts
+```
+
+`fonts/ttf/` に PDF 用の TrueType フォントが入り、以後の `mise run convert` は自動でそのフォントだけを使います。Type 3 フォントの入らない PDF ができます。
+
+## Type 3 フォントの問題
 
 PDF を作る Chromium（Skia）は、次のフォントを **Type 3 フォント**として PDF に入れます。
 
@@ -9,9 +19,53 @@ PDF を作る Chromium（Skia）は、次のフォントを **Type 3 フォン�
 
 Type 3 フォントは、入稿先によっては受け付けられません（技術書典では「T3_Font」として非承認になりました）。TrueType（glyf）形式で、太さを固定した（可変でない）フォントは、CID TrueType として埋め込まれます。
 
-変換ツールは PDF を作ったあとにフォントを調べ、Type 3 のフォントがあれば警告します（README の「フォントの検査（Type 3 フォント）」）。入稿用の PDF は `--font-check error` で作ってください。
+## mise run setup-fonts がすること
 
-### 確かめ方
+`scripts/setup-fonts.py` が、次のフォントを `fonts/ttf/` に用意します（uv で動きます。uv は `mise install` で入ります）。
+
+| フォント                         | 使うところ                               | 取得元                                                       |
+| -------------------------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| Noto Serif JP（Regular・Bold）   | 本文                                     | google/fonts の可変 TTF から、fontTools で太さを固定して作る |
+| Noto Sans JP（Regular・Bold）    | 見出し、日本語の予備                     | 同上                                                         |
+| Noto Emoji（Regular）            | 絵文字（白黒）                           | 同上                                                         |
+| Liberation Mono（Regular・Bold） | コード                                   | Liberation Fonts 2.1.5                                       |
+| DejaVu Sans                      | ほかのフォントにない記号の予備（⋮ など） | DejaVu Fonts 2.37                                            |
+
+- 取ってくるファイルは、コミットや版を固定し、SHA-256 を確かめます。
+- 作ったフォントは、TrueType（glyf）であること、可変の情報（fvar）がないこと、ファミリー名と太さが正しいことを確かめます。
+- 一時フォルダで全部作ってから `fonts/ttf/` と入れ替え、最後に `manifest.json`（ファイル名と SHA-256 の一覧）を書きます。
+- 同じ版の fontTools なら、毎回同じバイト列のフォントになります。
+- そろっていれば何もしません。作り直すときは `uv run --script scripts/setup-fonts.py --force` を実行します。
+- 各フォントのライセンスのファイルも `fonts/ttf/` に置きます（[fonts/README.md](../fonts/README.md)）。
+
+## 変換ツールがフォントを選ぶ順番
+
+Chromium に使わせる fontconfig の設定ファイルは、次の順で決めます（Linux だけ）。
+
+1. 設定の `fontconfigFile`（`null` なら、以下を使わずにシステムの設定）
+2. 環境変数 `FONTCONFIG_FILE`
+3. `fonts/fonts.conf`（`fonts/ttf/manifest.json` のファイルが全部そろっているとき）
+4. システムの設定
+
+`fonts/fonts.conf` は `fonts/ttf/` のフォントだけを読み、システムのフォントは読みません。使うときは、次の1行を出します。
+
+```text
+🔤 fontconfig: /…/fonts/fonts.conf を使います（mise run setup-fonts で用意したフォント）
+```
+
+`fonts/ttf/` があってもファイルが欠けているときは、警告してシステムの設定を使います。
+
+macOS と Windows の Chromium は fontconfig を使わないので、この仕組みは効きません。入稿用の PDF は Linux（WSL を含む）で作ってください。
+
+## 確かめ方
+
+変換ツールは、PDF を作ったあとにフォントを調べて1行出します（README の「フォントの検査（Type 3 フォント）」）。入稿用の PDF は `--font-check error` で作ってください。
+
+```bash
+mise run convert -- ../zenn-tech-articles/books/my-book output.pdf --font-check error
+```
+
+自分で確かめるときは次のとおりです。
 
 ```bash
 pdffonts output.pdf | grep -c "Type 3"   # 0 なら Type 3 はない
@@ -19,76 +73,21 @@ pdffonts output.pdf | grep -c "Type 3"   # 0 なら Type 3 はない
 
 Acrobat Reader では、「ファイル → プロパティ → フォント」で、各フォントが「埋め込みサブセット」になっていて、種類が「Type 3」でないことを確かめます。
 
-### いまの対策（手作業）
-
-TrueType のフォントだけを Chromium に見せると、Type 3 は入りません。今は手作業で次のように準備します（この手順を変換ツールに組み込む予定です）。
-
-1. Google Fonts の可変 TTF（Noto Sans JP、Noto Serif JP、Noto Emoji）から、fontTools の `instancer` で Regular（400）と Bold（700）の固定版を作ります。
-2. そのフォントと、TrueType の等幅フォント（Liberation Mono など）だけを読み込む `fonts.conf` を作ります。
-3. 設定ファイルの `fontconfigFile` に `fonts.conf` のパスを書いて変換します（例：`"fontconfigFile": "/path/to/fonts.conf"`。相対パスは設定ファイルの場所が基準）。環境変数 `FONTCONFIG_FILE` で指定することもできます。どちらも Linux でだけ効きます。
-4. 設定の `fonts` は、`'Noto Serif JP'` と `'Noto Sans JP'` を先頭にし、`'Noto Emoji'` を続けます。
-
-この方法では、絵文字は白黒になります。
-
-## 以下は Noto CJK を使う場合の手順です
-
-ここから下の手順で入る Noto Serif/Sans CJK JP は、Type 3 フォントになります。画面で読むための PDF には使えますが、入稿用の PDF には上の対策を使ってください。
-
-このプロジェクトでは、技術書向けの推奨フォントとして以下を使います。
-
-- 本文: `Noto Serif CJK JP`
-- 見出し: `Noto Sans CJK JP`（太字）
-
-## Linux でのインストール例
-
-### Debian / Ubuntu
-
-```bash
-sudo apt-get update
-sudo apt-get install -y fonts-noto-cjk
-```
-
-### WSL (Ubuntu) での注意点
-
-WSL は Windows 側フォントを自動利用しないため、WSL 内にフォントを明示インストールしてください。
-
-```bash
-sudo apt-get update
-sudo apt-get install -y fonts-noto-cjk fontconfig
-fc-cache -fv
-```
-
-### Fedora
-
-```bash
-sudo dnf install -y google-noto-cjk-fonts
-```
-
-### Arch Linux
-
-```bash
-sudo pacman -S --needed noto-fonts-cjk
-```
-
-## インストール確認
-
-```bash
-fc-list | grep -Ei "Noto Sans JP|Noto Serif JP|Noto Sans CJK JP|Noto Serif CJK JP"
-```
-
-出力に `Noto Sans CJK JP` と `Noto Serif CJK JP`（または `Noto * JP`）が含まれていれば利用可能です。
-
-## 設定例
-
-`pdf.config.json` の `fonts` で指定できます。
+## 既定のフォント
 
 ```json
 {
   "fonts": {
-    "bodyFamily": "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
-    "headingFamily": "'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', 'IPAexGothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif"
+    "bodyFamily": "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
+    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif"
   }
 }
 ```
 
-フォントが未導入の場合、実行時に警告を表示し、PDF生成は継続されます（フォールバックフォントで出力）。
+ヒラギノ（macOS）と游明朝・メイリオ（Windows）は、Noto JP を入れていない環境の予備です。変換の前に、本文と見出しの先頭のフォントが TrueType として見つかるかを `fc-match` で確かめ、見つからないとき、または TrueType でない（CFF など。Type 3 になる）ときは警告します。
+
+## 注意
+
+- **絵文字は白黒になります。** カラー絵文字（Noto Color Emoji）は Type 3 になるため、白黒の Noto Emoji を使います。
+- **用意したフォントにない字は、豆腐（□）になります。** ハングルや、簡体字だけの字などです。システムのフォントを読まないので、Type 3 にはなりませんが、字が抜けます。原稿の字を直すか、その字を含む TrueType のフォントを `fonts/fonts.conf` に足してください。
+- `fonts-noto-cjk`（Noto Serif/Sans CJK JP）は Type 3 になるので、入稿用の PDF には使わないでください。画面で読むための PDF には使えます。

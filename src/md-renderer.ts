@@ -371,10 +371,10 @@ function getBookStyles(
   const figureMaxHeight = `calc(${paper[1]}in - ${margin.top} - ${margin.bottom} - 12mm)`;
   const bodyFamily =
     fonts.bodyFamily ||
-    "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif";
+    "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif";
   const headingFamily =
     fonts.headingFamily ||
-    "'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', 'IPAexGothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
+    "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
   const pageMargin = `${margin.top} ${margin.right} ${margin.bottom} ${margin.left}`;
 
   return `
@@ -684,9 +684,9 @@ function normalizeFonts(value: unknown): PdfFonts {
 
 const DEFAULT_FONTS: PdfFonts = {
   bodyFamily:
-    "'Noto Serif CJK JP', 'Noto Serif JP', 'Noto Serif', 'IPAexMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
+    "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
   headingFamily:
-    "'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', 'IPAexGothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+    "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
 };
 
 const DEFAULT_MARGIN: PdfMargin = {
