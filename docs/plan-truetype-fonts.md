@@ -1,6 +1,36 @@
 # 計画：Type 3 フォントを出さない・見つける
 
 作成：2026-11-21（同日、4つのモデル（Sonnet、Haiku、Fable、Codex）のレビューを反映して改訂）
+最終更新：2026-11-21（すべての PR がマージ済み。進み具合と今の状態を追記）
+
+## 進み具合
+
+計画した PR は、すべてマージした（日付は日本時間）。
+
+| PR       | 内容                                                                                  | GitHub | マージ     |
+| -------- | ------------------------------------------------------------------------------------- | ------ | ---------- |
+| PR 1     | Type 3・埋め込みなしのフォントの検査（`fontCheck`、`--font-check`）                   | #22    | 2026-11-21 |
+| （修正） | e2e テストの fixture の `pdf.config.json` を Git で管理する（#22 の CI の失敗の修正） | #23    | 2026-11-21 |
+| PR 2a    | 設定 `fontconfigFile`                                                                 | #24    | 2026-11-21 |
+| PR 2b-1  | `mise run setup-fonts`、`fonts/fonts.conf` の自動検出、既定のフォントの変更           | #25    | 2026-11-21 |
+| PR 2b-2  | 豆腐（フォントにない字）の検査（`glyphCheck`、`--glyph-check`）                       | #26    | 2026-11-21 |
+| PR 3     | コードのフォントの既定を UDEV Gothic にする（`fonts.codeFamily`）                     | #27    | 2026-11-21 |
+| PR 4     | カラーの絵文字（`emoji: "twemoji"`）                                                  | #28    | 2026-11-21 |
+
+- PR 2b は、大きくなったので 2b-1（フォントの準備と既定の変更）と 2b-2（豆腐の検査）に分けた。
+- PR 4 は、計画を作ったときは「あとで考えること」だった。著者の希望で入れた（下の「PR 4」）。
+- 残っているのは「あとで考えること」だけ。
+
+## 今の状態（2026-11-21）
+
+- Linux（WSL を含む）で `mise run setup-fonts` を1回実行すれば、`mise run convert` は自動で `fonts/fonts.conf` を使い、Type 3 フォントのない PDF を作る。
+- 作る前に豆腐を、作ったあとに Type 3・埋め込みなしを検査する。入稿用の PDF は `--font-check error --glyph-check error` で作る。
+- 使うフォント（`fonts/ttf/`、manifest の版 2）：Noto Serif JP（本文）、Noto Sans JP（見出し、日本語の予備）、UDEV Gothic（コード）、Noto Emoji（白黒の絵文字）、Liberation Mono（コードの予備）、DejaVu Sans（記号の予備）。
+- `emoji: "twemoji"` のときは、Twemoji の SVG（`fonts/twemoji/`）で絵文字をカラーにする。
+- fastapi-for-starters-v2：
+  - 技術書典21に再提出した 863 ページの PDF（コードは Liberation Mono、絵文字は白黒）は承認された。
+  - 今の設定（UDEV Gothic、Twemoji）で作ると 837 ページ。Type 3 なし、豆腐なし、白紙のページ・見出しの残り・図の分断は承認された版と同じ数。著者が見た目を確認した。
+  - 承認された版と同じ組みは、`"codeFamily": "'Liberation Mono', 'Noto Sans JP', 'Noto Emoji', monospace"` と `emoji` なし（`text`）で作れる。
 
 ## 目的
 
@@ -21,7 +51,7 @@
   - TrueType のフォントだけを見せる `fonts.conf` を作り、`FONTCONFIG_FILE` で指定して PDF を作った。
   - 結果：863 ページ。フォント 9 個（Type 0）すべてが CID TrueType で埋め込み。Acrobat Reader の「文書のプロパティ → フォント」でも確認した。
   - 絵文字はカラー（Noto Color Emoji）から白黒（Noto Emoji）に変わった。**これは意図した変更**として扱う（カラー絵文字は Type 3 になるため）。
-- 今の変換ツールの問題：
+- 計画を作ったときの変換ツールの問題（すべて PR 1〜2b で直した）：
   - 既定のフォント（`config-loader.ts`、`md-renderer.ts:372` の予備の値）、`pdf.config.example.json`、テスト用の設定、README の設定の例、`docs/font-setup.md` が、Type 3 になる `Noto Serif/Sans CJK JP` を勧めている。
   - Type 3 が入っても、何も警告しない。
   - `warnIfNotoFontsUnavailable()` は名前に「noto」があるかだけを見るため、Type 3 の原因になる `Noto Sans CJK JP` を「OK」と判定する。
@@ -44,7 +74,11 @@
 
 ## 進め方（PR を4つに分ける）
 
+以下の各 PR の節は、計画を作ったときに書いたもの。実装で変えたところは、各節に追記した。
+
 ### PR 1：Type 3 フォントと埋め込まれていないフォントを見つける（先にやる）
+
+**済み（#22）。** fixture の設定ファイルが `.gitignore` に入っていて CI が失敗したので、#23 で直した。
 
 PDF を作った直後に PDF の中を調べ、問題があれば知らせる。フォントの設定を変える前でも役に立ち、どの OS でも動くので、最初に入れる。
 
@@ -86,6 +120,8 @@ PDF を作った直後に PDF の中を調べ、問題があれば知らせる�
 
 ### PR 2a：設定で fontconfig の設定ファイルを指定できるようにする
 
+**済み（#24）。**
+
 仕組みだけを入れる。既定は「指定なし＝今までどおり」なので、今の利用者には影響しない。これが入れば、手元の `fonts.conf` を設定ファイルで指定でき、毎回の `FONTCONFIG_FILE=` が要らなくなる。
 
 - 設定 `fontconfigFile`（新規）
@@ -100,6 +136,8 @@ PDF を作った直後に PDF の中を調べ、問題があれば知らせる�
 - 合格の条件：手元の `pdf.config.v2.json` に `fontconfigFile` を書き、`FONTCONFIG_FILE=` を付けずに作った PDF が、今の PDF と同じになる（863 ページ、`pdffonts` の結果が同じ）。
 
 ### PR 2b：フォントを準備するスクリプトと、既定の変更
+
+**済み。** 2b-1（#25）と 2b-2（豆腐の検出、#26）に分けた。合格の条件は、新しいコピーで確かめた（863 ページ、文字・`pdffonts`・画像が再提出した PDF と同じ）。DejaVu Sans は、⋮ などの記号の予備として足した。
 
 利用者に見える変更（既定のフォント、白黒の絵文字）をここに集め、PR の説明に書く。
 
@@ -154,6 +192,8 @@ PDF を作った直後に PDF の中を調べ、問題があれば知らせる�
 
 ### PR 3：コードのフォント（2026-11-21 に決めた）
 
+**済み（#27）。**
+
 - 決めたこと：既定を **UDEV Gothic v2.2.0 の通常版**（Regular・Bold）にする。`setup-fonts` で用意し、設定 `fonts.codeFamily` で変えられる。
   - 候補ごとに fastapi-for-starters-v2 を作って比べた。3書体とも Type 3 なし、豆腐なし、837 ページ。
   - HackGen と BIZ UDゴシックは罫線（`─│`）が全角で、ディレクトリの構成の図の横線が間延びし、日本語のコメントの桁がずれた。UDEV Gothic は罫線が半角で、図もコメントの桁もそろった。
@@ -166,6 +206,19 @@ PDF を作った直後に PDF の中を調べ、問題があれば知らせる�
 - 候補：UDEV Gothic、HackGen、BIZ UDゴシック（どれも TrueType で配布。BIZ UD は google/fonts に静的な TTF がある）。
 - 候補ごとに PDF を作り、ディレクトリの構成の図・日本語のコメントの入ったコード・Type 3 の有無を比べてから決める。
 - ページ数が変わるので、次に版を更新するときに合わせて行う。
+
+### PR 4：カラーの絵文字（2026-11-21 に追加）
+
+**済み（#28）。**
+
+- 設定 `emoji`：`"text"`（既定。白黒の Noto Emoji）/ `"twemoji"`。
+- 方法：絵文字の字（Noto Emoji）を透明にして残し、Twemoji の SVG を背景として重ねる（`print-color-adjust: exact`）。字が残るので、PDF から文字としてコピーでき、豆腐の検査もそのまま働く。字の幅は Noto Emoji のままなので、組みはほぼ変わらない（等幅フォントが半角で持つ ⚡ ⚠ は、Noto Emoji の幅になる）。
+- 対象：HTML の文字の部分の RGI 絵文字（ZWJ・国旗を含む）。属性、`script`、`style`、Mermaid の図、U+FE0F のない記号（▶ ⚠ © など）、U+FE0E の付いた字は変えない。
+- `setup-fonts` が Twemoji v17.0.3 の SVG（4009 個）とライセンスを `fonts/twemoji/` に取り出す。GitHub のアーカイブはバイト列が変わりうるので、取り出した SVG の一覧のハッシュを確かめる。SVG は単純な図形だけ（文字、グラデーション、マスク、画像なし）。
+- Twemoji の絵は CC BY 4.0。使った絵文字があれば、奥付（なければ本の最後）にクレジットを自動で入れる。
+- 決め方：Fable と Codex の意見を聞いた。Codex の案（`<img>` に置き換える）は、コピーできず、組みと豆腐の検査が変わるので採らなかった。COLRv0 などのカラーのフォントは、Skia が Type 3 にする見込みなので試していない。
+- 結果（fastapi-for-starters-v2）：19 種類・43 個をカラーにし、837 ページのまま、Type 3 なし、PDF の画像の数も同じ、ファイルは約 42KB 増。
+- 未確認：透明な字と背景の絵を、入稿先（技術書典）の審査がどう扱うか。
 
 ## `@font-face` の確認（2026-11-21 に実験）
 
@@ -233,25 +286,32 @@ fontconfig の方法では、用意したフォントのどれにもない字は
 - Type 3 を出さない方法は fontconfig を主にする。`@font-face` はあとで考える（理由は「`@font-face` の確認」の結論）。
 - 豆腐は、PR 2b の豆腐の検出（`glyphCheck`、既定は `"warn"`）で見つける。
 - 絵文字は白黒（Noto Emoji）にする。カラーにしたいときは、絵文字を SVG の画像に置き換える方式を別の課題として考える。
-  - 2026-11-21：設定 `"emoji": "twemoji"` で、カラーにできるようにした（既定は白黒のまま）。Fable と Codex の意見を聞き、Fable の案（絵文字の字を透明にして残し、Twemoji の SVG を背景として重ねる）にした。Codex の案（`<img>` に置き換える）は、コピーできず、組みと字の検査が変わるため採らなかった。COLRv0 などのカラーのフォントは、Skia が Type 3 にする見込みなので試していない。
+  - 2026-11-21：設定 `"emoji": "twemoji"` で、カラーにできるようにした（既定は白黒のまま。上の「PR 4」）。
+- 豆腐の検査は、`coverage.json` ではなく `fc-list` で字の一覧を取る（PR 2b-2）。
+- コードのフォントの既定は UDEV Gothic にする。承認された PDF は作り直さない（PR 3）。
 - 手元の `~/.local/share/zenn-book-to-pdf-fonts/` は、次の順で片付ける。
   1. 消す前に、フォントと `fonts.conf` のハッシュを記録し、別の場所に控えを取る。
   2. PR 2b の `setup-fonts` で作り直し、作った PDF を今の PDF と比べる（`pdffonts`、ページ数、`pdftotext` の差分。バイト単位の一致は求めない）。
   3. 技術書典の再提出が承認され、2. が確かめられたら消す（2026-11-21 に消した）。`~/.cache/zenn-book-to-pdf-fontconfig` も一緒に消す。
-  4. zenn-tech-articles 側のメモ（`FONTCONFIG_FILE` でビルドする手順）も同時に直す。
+  4. zenn-tech-articles 側のメモ（`FONTCONFIG_FILE` でビルドする手順）も同時に直す（済み）。
 
 ## 元に戻す方法
 
 - PR 1：PR を差し戻すか、`fontCheck: "off"` にする。
 - PR 2a：`fontconfigFile` を指定しなければ今までどおり。
-- PR 2b：`fontconfigFile: null` で自動検出を止めると、今までのシステムの設定に戻る。既定のフォントの変更は1つのコミットにまとめ、そのコミットだけ戻せるようにする。
+- PR 2b：`fontconfigFile: null` で自動検出を止めると、今までのシステムの設定に戻る。既定のフォントの変更は1つのコミットにまとめ、そのコミットだけ戻せるようにする。豆腐の検査は `glyphCheck: "off"` で止める。
+- PR 3：`"codeFamily": "'Liberation Mono', 'Noto Sans JP', 'Noto Emoji', monospace"` で、以前の組みに戻る。
+- PR 4：`emoji` を書かない（`"text"`）と、白黒に戻る。
 
 ## 順番
 
-1. PR 1（検出）：技術書典の再提出のあとすぐ。
-2. PR 2a（仕組み）：小さい。単体テストだけで出せる。
-3. PR 2b（フォントの準備と既定の変更）：PR 1 の検出を使って、直ったことを確かめる。
-4. PR 3（コードのフォント）：2026-11-21 に既定を UDEV Gothic にした（上の「PR 3」）。
+すべて済んだ（上の「進み具合」）。計画したときの順番は次のとおりだった。
+
+1. PR 1（検出）：技術書典の再提出のあとすぐ。→ #22
+2. PR 2a（仕組み）：小さい。単体テストだけで出せる。→ #24
+3. PR 2b（フォントの準備と既定の変更）：PR 1 の検出を使って、直ったことを確かめる。→ #25、#26
+4. PR 3（コードのフォント）：次の改版のとき。→ 前倒しして #27
+5. （追加）PR 4（カラーの絵文字）→ #28
 
 ## あとで考えること
 
@@ -260,3 +320,5 @@ fontconfig の方法では、用意したフォントのどれにもない字は
 - 入稿用の参照環境としての Dockerfile（Chromium、fontconfig、フォントを固定する）。
 - CI で `setup-fonts` を動かし（フォントをキャッシュする）、本物の Chromium の出力で Type 3 が 0 個であることを確かめる e2e。
 - CDP の `CSS.getPlatformFontsForNode` で、実際に使われた書体を集めて、予定外の書体を警告する。
+- 次に fastapi-for-starters-v2 を入稿するとき：837 ページの組みを全体で確かめる。Twemoji（透明な字と背景の絵）を審査がどう扱うかを見る。
+- Twemoji を、タイトル・目次・奥付の絵文字にも使う（今は章の本文だけ）。
