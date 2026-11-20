@@ -376,6 +376,14 @@ function getBookStyles(
     fonts.headingFamily ||
     "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
   const pageMargin = `${margin.top} ${margin.right} ${margin.bottom} ${margin.left}`;
+  // zenn-content-css の .znc code, .znc .code-block-filename と同じセレクタで、あとから上書きする
+  const codeFontStyles = fonts.codeFamily
+    ? `
+    .znc code,
+    .znc .code-block-filename {
+      font-family: ${fonts.codeFamily};
+    }`
+    : "";
 
   return `
     * { box-sizing: border-box; }
@@ -399,6 +407,7 @@ function getBookStyles(
       font-family: inherit;
       font-weight: 700;
     }
+${codeFontStyles}
 
     /* 表紙 */
     .cover {
@@ -679,7 +688,16 @@ function normalizeFonts(value: unknown): PdfFonts {
       ? record.headingFamily
       : DEFAULT_FONTS.headingFamily;
 
-  return { bodyFamily, headingFamily };
+  const codeFamily =
+    typeof record.codeFamily === "string" && record.codeFamily.trim() !== ""
+      ? record.codeFamily
+      : DEFAULT_FONTS.codeFamily;
+
+  return {
+    bodyFamily,
+    headingFamily,
+    ...(codeFamily !== undefined ? { codeFamily } : {}),
+  };
 }
 
 const DEFAULT_FONTS: PdfFonts = {
@@ -687,6 +705,8 @@ const DEFAULT_FONTS: PdfFonts = {
     "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
   headingFamily:
     "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+  codeFamily:
+    "'UDEV Gothic', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace, 'Noto Emoji'",
 };
 
 const DEFAULT_MARGIN: PdfMargin = {

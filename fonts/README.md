@@ -12,6 +12,7 @@ PDF 用のフォントの設定です。使い方は [docs/font-setup.md](../doc
 | フォント                                  | ライセンス                                            | ライセンスのファイル         |
 | ----------------------------------------- | ----------------------------------------------------- | ---------------------------- |
 | Noto Sans JP / Noto Serif JP / Noto Emoji | SIL Open Font License 1.1                             | `OFL-NotoSansJP.txt` ほか    |
+| UDEV Gothic                               | SIL Open Font License 1.1                             | `LICENSE-UDEVGothic.txt`     |
 | Liberation Mono                           | SIL Open Font License 1.1                             | `LICENSE-LiberationMono.txt` |
 | DejaVu Sans                               | Bitstream Vera Fonts のライセンスほか（自由に使える） | `LICENSE-DejaVuSans.txt`     |
 

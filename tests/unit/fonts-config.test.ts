@@ -139,6 +139,52 @@ describe("fonts config", () => {
     expect(html).toContain("font-family: 'Noto Sans JP', sans-serif;");
   });
 
+  it("codeFamily の既定は UDEV Gothic で、指定すれば上書きできる", async () => {
+    expect(DEFAULT_CONFIG.fonts.codeFamily).toMatch(/^'UDEV Gothic'/);
+
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fonts: { codeFamily: "'Liberation Mono', monospace" },
+    });
+    const config = await loadPdfConfig();
+
+    expect(config.fonts.codeFamily).toBe("'Liberation Mono', monospace");
+    expect(config.fonts.bodyFamily).toBe(DEFAULT_CONFIG.fonts.bodyFamily);
+  });
+
+  it("codeFamily が空なら警告して既定を使う", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await fs.writeJson(path.join(tmpDir, "pdf.config.json"), {
+      fonts: { codeFamily: " " },
+    });
+
+    const config = await loadPdfConfig();
+
+    expect(config.fonts.codeFamily).toBe(DEFAULT_CONFIG.fonts.codeFamily);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("fonts.codeFamily"),
+    );
+  });
+
+  it("buildBookHtml で codeFamily がコードとコードのファイル名の CSS に反映される", async () => {
+    const book: ParsedBook = {
+      config: { title: "Test Book" },
+      chapters: [{ slug: "c", title: "C", content: "`code`" }],
+      bookPath: tmpDir,
+    };
+
+    const html = await buildBookHtml(book, {
+      fonts: {
+        bodyFamily: "serif",
+        headingFamily: "sans-serif",
+        codeFamily: "'UDEV Gothic', monospace",
+      },
+    });
+
+    expect(html).toMatch(
+      /\.znc code,\s*\.znc \.code-block-filename \{\s*font-family: 'UDEV Gothic', monospace;/,
+    );
+  });
+
   it("buildBookHtml で margin が @page に反映される", async () => {
     const book: ParsedBook = {
       config: {

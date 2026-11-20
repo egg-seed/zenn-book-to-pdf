@@ -21,6 +21,7 @@
   },
   "fonts": {
     "bodyFamily": "'Noto Serif JP', 'Noto Emoji', 'Hiragino Mincho ProN', 'Yu Mincho', serif",
-    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif"
+    "headingFamily": "'Noto Sans JP', 'Noto Emoji', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif",
+    "codeFamily": "'UDEV Gothic', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace, 'Noto Emoji'"
   }
 }

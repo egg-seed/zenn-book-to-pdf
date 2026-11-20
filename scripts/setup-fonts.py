@@ -10,7 +10,8 @@ Type 3 フォントの入らない PDF を作れる（docs/font-setup.md）。
 
 - Noto Sans JP / Noto Serif JP / Noto Emoji：google/fonts の可変 TTF から、fontTools で
   Regular（400）と Bold（700）の静的なフォントを作る。
-- Liberation Mono（コード）と DejaVu Sans（ほかのフォントにない記号の予備）：配布物から取り出す。
+- UDEV Gothic（コード。日本語1字＝英数字2字で、罫線は英数字と同じ幅）、Liberation Mono（コードの予備）、
+  DejaVu Sans（ほかのフォントにない記号の予備）：配布物から取り出す。
 
 取ってくるファイルは、コミットや版を固定し、SHA-256 を確かめる。作るフォントは SOURCE_DATE_EPOCH を
 固定するので、同じ版の fontTools なら毎回同じバイト列になる。
@@ -30,6 +31,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,7 +44,9 @@ ROOT = Path(__file__).resolve().parent.parent
 FONTS_DIR = ROOT / "fonts"
 TTF_DIR = FONTS_DIR / "ttf"
 MANIFEST_NAME = "manifest.json"
-MANIFEST_VERSION = 1
+# フォントの組を変えたら上げる。src/fontconfig.ts の BUNDLED_MANIFEST_VERSION と同じ値にする。
+# 古い版の fonts/ttf/ は、そろっていないものとして作り直す（変換ツールも使わない）。
+MANIFEST_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -63,12 +67,14 @@ class VariableSource:
 
 @dataclass(frozen=True)
 class ArchiveSource:
-    """配布物（tar）から TTF を取り出す。"""
+    """配布物（tar または zip）から TTF を取り出す。"""
 
     name: str
     download: Download
-    members: tuple[tuple[str, str, str, str], ...]  # (tar の中のパス, 保存名, family, style)
-    license_member: str
+    members: tuple[tuple[str, str, str, str], ...]  # (配布物の中のパス, 保存名, family, style)
+    # ライセンスは、配布物の中のパス（license_member）か、別に取ってくるファイル（license_download）
+    license_member: str | None = None
+    license_download: Download | None = None
 
 
 VARIABLE_SOURCES = (
@@ -110,7 +116,26 @@ VARIABLE_SOURCES = (
     ),
 )
 
+# UDEV Gothic v2.2.0 のタグのコミット。ライセンスは zip に入っていないので、このコミットから取る。
+UDEV_GOTHIC_COMMIT = "ca8d6f0a66a3ce39e1e5a6cab27a214d0990630d"
+
 ARCHIVE_SOURCES = (
+    ArchiveSource(
+        name="UDEVGothic",
+        download=Download(
+            "https://github.com/yuru7/udev-gothic/releases/download/v2.2.0/UDEVGothic_v2.2.0.zip",
+            "c104c171f6ed8922ca52d74cd915a271e427f1e884e51431aae71d99e8b3b47b",
+        ),
+        # 通常版を使う（35 は英数字と日本語の幅が 3:5、LG は合字あり、JPDOC は罫線などが全角）
+        members=(
+            ("UDEVGothic_v2.2.0/UDEVGothic-Regular.ttf", "UDEVGothic-Regular.ttf", "UDEV Gothic", "Regular"),
+            ("UDEVGothic_v2.2.0/UDEVGothic-Bold.ttf", "UDEVGothic-Bold.ttf", "UDEV Gothic", "Bold"),
+        ),
+        license_download=Download(
+            f"https://raw.githubusercontent.com/yuru7/udev-gothic/{UDEV_GOTHIC_COMMIT}/LICENSE",
+            "3e04c747c9c9535224f6163a290caf022877759db5183a00aef6134d3f5643f0",
+        ),
+    ),
     ArchiveSource(
         name="LiberationMono",
         download=Download(
@@ -153,8 +178,14 @@ def fetch(download: Download) -> bytes:
     return data
 
 
-def read_tar_member(archive: bytes, member: str) -> bytes:
+def read_archive_member(archive: bytes, member: str) -> bytes:
     # extractall は使わず、決めたメンバーだけを読む
+    if zipfile.is_zipfile(io.BytesIO(archive)):
+        with zipfile.ZipFile(io.BytesIO(archive)) as zf:
+            info = zf.getinfo(member)
+            if info.is_dir():
+                raise SystemExit(f"エラー: {member} がファイルではありません")
+            return zf.read(info)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         info = tar.getmember(member)
         if not info.isfile():
@@ -235,12 +266,17 @@ def build(work_dir: Path) -> None:
         archive = fetch(source.download)
         for member, file_name, family, style in source.members:
             out = work_dir / file_name
-            out.write_bytes(read_tar_member(archive, member))
+            out.write_bytes(read_archive_member(archive, member))
             verify_font(out, family, style)
             record(fonts, out, family=family, style=style)
             print(f"  取り出し: {out.name}")
         license_path = work_dir / f"LICENSE-{source.name}.txt"
-        license_path.write_bytes(read_tar_member(archive, source.license_member))
+        if source.license_download is not None:
+            license_path.write_bytes(fetch(source.license_download))
+        elif source.license_member is not None:
+            license_path.write_bytes(read_archive_member(archive, source.license_member))
+        else:
+            raise SystemExit(f"エラー: {source.name} のライセンスの取り方が決まっていません")
         record(licenses, license_path)
 
     manifest = {

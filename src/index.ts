@@ -119,7 +119,7 @@ function runFcList(env: NodeJS.ProcessEnv): { ok: boolean; stdout: string } {
 }
 
 /**
- * 本文と見出しの先頭のフォントが、TrueType のフォントとして見つかるかを確かめる（Linux だけ）。
+ * 本文、見出し、（指定があれば）コードの先頭のフォントが、TrueType のフォントとして見つかるかを確かめる（Linux だけ）。
  * Chromium と同じ fontconfig の設定（env）で調べる。
  */
 function warnIfFontsUnavailable(
@@ -130,7 +130,12 @@ function warnIfFontsUnavailable(
     return;
   }
 
-  const families = [pdfConfig.fonts.bodyFamily, pdfConfig.fonts.headingFamily]
+  const families = [
+    pdfConfig.fonts.bodyFamily,
+    pdfConfig.fonts.headingFamily,
+    pdfConfig.fonts.codeFamily,
+  ]
+    .filter((fontFamily): fontFamily is string => fontFamily !== undefined)
     .map((fontFamily) => namedFamilies(fontFamily)[0])
     .filter((family): family is string => family !== undefined);
 
